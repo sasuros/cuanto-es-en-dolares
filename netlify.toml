@@ -1,0 +1,17 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+# Proxy a la API BCV para evitar CORS desde el navegador.
+# La key sigue viviendo solo en el header — Netlify la reenvía 1:1.
+[[redirects]]
+  from = "/api/bcv"
+  to = "https://bcvapi.tech/api/v1/dolar"
+  status = 200
+  force = true
+
+# SPA fallback — todas las rutas sirven index.html para que la PWA funcione.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

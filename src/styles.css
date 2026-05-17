@@ -1,0 +1,493 @@
+/* ========================================
+   ¿Cuánto es en Dólares?
+   Estilos base — MODO OSCURO por defecto
+   Diseñado para adultos mayores
+   Reglas: texto grande, contraste alto (WCAG AAA),
+   botones enormes, números cristalinos
+   ======================================== */
+
+/* ---------- Variables ---------- */
+:root {
+  color-scheme: dark;
+
+  /* ---------- Fondos (modo oscuro) ---------- */
+  --color-bg: #121212;            /* Fondo principal — gris muy oscuro (no negro puro: descansa la vista) */
+  --color-bg-soft: #1E1E1E;       /* Fondo de tarjetas / contenedores */
+  --color-bg-input: #242424;      /* Fondo de inputs */
+  --color-bg-elevated: #2A2A2A;   /* Superficies elevadas (modales, dropdowns) */
+
+  /* ---------- Texto ---------- */
+  --color-text: #F5F5F5;          /* Texto principal — off-white (descansa más que blanco puro)
+                                     Contraste vs --color-bg: 16.3:1 → AAA ✅ */
+  --color-text-soft: #B8B8B8;     /* Texto secundario
+                                     Contraste vs --color-bg: 8.2:1 → AAA ✅ */
+  --color-text-dim: #888888;      /* Texto atenuado (helpers, hints)
+                                     Contraste vs --color-bg: 4.8:1 → AA Large ✅ */
+  --color-text-on-primary: #0A2818; /* Texto OSCURO sobre botón verde (más legible que blanco)
+                                       Contraste vs --color-primary: 10.2:1 → AAA ✅ */
+
+  /* ---------- Paleta de acción ---------- */
+  --color-primary: #2ECC71;       /* Verde — acción principal (CALCULAR)
+                                     Contraste vs --color-bg: 6.7:1 → AAA Large ✅ */
+  --color-primary-bright: #3DE682; /* Verde más brillante — hover/focus */
+  --color-primary-dark: #27AE60;  /* Verde oscuro — active/pressed */
+
+  --color-secondary: #5DADE2;     /* Azul brillante — BCV / información
+                                     (subido desde #3498DB para legibilidad en oscuro)
+                                     Contraste vs --color-bg: 7.1:1 → AAA ✅ */
+
+  --color-accent: #F5B041;        /* Naranja brillante — Binance (Fase 2)
+                                     Contraste vs --color-bg: 9.8:1 → AAA ✅ */
+
+  --color-error: #FF6B6B;         /* Rojo brillante — errores
+                                     Contraste vs --color-bg: 6.0:1 → AAA Large ✅ */
+  --color-success: #2ECC71;       /* Verde — éxito */
+
+  /* ---------- Bordes ---------- */
+  --color-border: #3A3A3A;        /* Bordes normales */
+  --color-border-soft: #2D2D2D;   /* Bordes suaves */
+  --color-border-focus: #2ECC71;  /* Borde al hacer focus (verde brillante) */
+
+  /* ---------- Tipografía ---------- */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-numbers: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+
+  /* Tamaños — GRANDES para adultos mayores */
+  --font-size-help: 16px;         /* Mínimo absoluto — textos auxiliares */
+  --font-size-base: 18px;         /* Tamaño base de la app */
+  --font-size-label: 20px;        /* Etiquetas */
+  --font-size-button: 26px;       /* Texto de botones */
+  --font-size-input: 36px;        /* Input de bolívares — bien grande */
+  --font-size-title: 32px;        /* Título de la app */
+  --font-size-result: 56px;       /* Resultado en dólares — ENORME */
+
+  /* Pesos tipográficos */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-weight-black: 900;
+
+  /* ---------- Espaciado ---------- */
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+
+  /* ---------- Touch targets ---------- */
+  --touch-target-min: 60px;
+  --touch-target-lg: 80px;
+
+  /* ---------- Border radius ---------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* ---------- Sombras (luminosas en dark mode) ---------- */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --glow-primary: 0 0 24px rgba(46, 204, 113, 0.35);  /* Resplandor verde para botón principal */
+  --glow-focus: 0 0 0 4px rgba(46, 204, 113, 0.25);   /* Halo en focus */
+}
+
+/* ---------- Reset suave ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  background-color: var(--color-bg);
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input {
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+/* Selección de texto: verde tenue sobre oscuro */
+::selection {
+  background: rgba(46, 204, 113, 0.35);
+  color: #FFFFFF;
+}
+
+/* Accesibilidad: outline visible en navegación con teclado */
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--color-primary-bright);
+  outline-offset: 3px;
+}
+
+/* ---------- Layout principal ---------- */
+.app {
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* ---------- Header ---------- */
+.app-header {
+  text-align: center;
+  padding-top: var(--space-md);
+}
+
+.app-title {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+.app-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-soft);
+  margin-top: var(--space-xs);
+}
+
+/* ---------- Contenido ---------- */
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.placeholder {
+  background: var(--color-bg-soft);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  text-align: center;
+  font-size: var(--font-size-label);
+  color: var(--color-text-soft);
+}
+
+/* ---------- Footer ---------- */
+.app-footer {
+  text-align: center;
+  padding-bottom: var(--space-md);
+}
+
+.footer-text {
+  font-size: var(--font-size-help);
+  color: var(--color-text-dim);
+}
+
+/* ========================================
+   COMPONENTE: CalculatorInput
+   ======================================== */
+.calculator-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.calculator-input__label {
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-soft);
+  text-align: center;
+}
+
+.calculator-input__field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.calculator-input__field {
+  width: 100%;
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-input);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: var(--color-bg-input);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) 130px var(--space-md) var(--space-md);
+  min-height: var(--touch-target-lg);
+  text-align: right;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.calculator-input__field::placeholder {
+  color: var(--color-text-dim);
+  font-weight: var(--font-weight-normal);
+}
+
+.calculator-input__field:hover {
+  border-color: var(--color-text-dim);
+}
+
+.calculator-input__field:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-focus);
+  background: var(--color-bg-elevated);
+}
+
+.calculator-input__currency {
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-soft);
+  pointer-events: none;
+  user-select: none;
+}
+
+.calculator-input__clear {
+  position: absolute;
+  right: 64px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-soft);
+  background: var(--color-border-soft);
+  border-radius: 50%;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.calculator-input__clear:hover,
+.calculator-input__clear:focus-visible {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.calculator-input__clear:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.calculator-input__button {
+  width: 100%;
+  min-height: var(--touch-target-lg);
+  font-size: var(--font-size-button);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 1px;
+  color: var(--color-text-on-primary);
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  box-shadow: var(--glow-primary), var(--shadow-md);
+  transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.2s ease;
+}
+
+.calculator-input__button:hover:not(:disabled) {
+  background: var(--color-primary-bright);
+  box-shadow: 0 0 32px rgba(46, 204, 113, 0.5), var(--shadow-lg);
+}
+
+.calculator-input__button:active:not(:disabled) {
+  transform: translateY(2px);
+  background: var(--color-primary-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.calculator-input__button:disabled {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-dim);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ========================================
+   COMPONENTE: ResultDisplay
+   ======================================== */
+.result-display {
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-md);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-sm);
+  animation: result-fade-in 0.3s ease-out;
+}
+
+@keyframes result-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Estado: success ---------- */
+.result-display--success {
+  border: 1px solid var(--color-border-soft);
+}
+
+.result-display__label {
+  font-size: var(--font-size-label);
+  color: var(--color-text-soft);
+  font-weight: var(--font-weight-medium);
+}
+
+.result-display__amount {
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-result);
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary);
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 24px rgba(46, 204, 113, 0.25);
+  margin: var(--space-xs) 0;
+  word-break: break-word;
+}
+
+.result-display__bolivares {
+  font-size: var(--font-size-base);
+  color: var(--color-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-display__bolivares strong {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.result-display__divider {
+  height: 1px;
+  background: var(--color-border-soft);
+  margin: var(--space-sm) auto;
+  width: 80%;
+}
+
+.result-display__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.result-display__rate {
+  font-size: var(--font-size-help);
+  color: var(--color-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-display__rate strong {
+  color: var(--color-secondary);
+  font-weight: var(--font-weight-bold);
+}
+
+.result-display__date,
+.result-display__updated {
+  font-size: var(--font-size-help);
+  color: var(--color-text-dim);
+}
+
+/* ---------- Estado: loading ---------- */
+.result-display--loading {
+  border: 1px solid var(--color-border-soft);
+  min-height: 160px;
+  justify-content: center;
+  align-items: center;
+}
+
+.result-display__spinner-placeholder {
+  font-size: 48px;
+  animation: spinner-rotate 2s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.result-display__loading-text {
+  font-size: var(--font-size-label);
+  color: var(--color-text-soft);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---------- Estado: error ---------- */
+.result-display--error {
+  background: rgba(255, 107, 107, 0.08);
+  border: 2px solid var(--color-error);
+  align-items: center;
+  padding: var(--space-md);
+}
+
+.result-display__error-icon {
+  font-size: 40px;
+  margin-bottom: var(--space-xs);
+}
+
+.result-display__error-text {
+  font-size: var(--font-size-label);
+  color: var(--color-error);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+}
+
+/* ---------- Responsive — desktop ---------- */
+@media (min-width: 768px) {
+  :root {
+    --font-size-title: 40px;
+    --font-size-result: 72px;
+  }
+
+  .app {
+    padding: var(--space-lg);
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Modo claro (respeto al sistema, opcional para futuro) ----------
+   Si en el futuro queremos respetar la preferencia del sistema, descomentar:
+   @media (prefers-color-scheme: light) { ... }
+   Por ahora: SIEMPRE oscuro por decisión de UX.
+   ---------------------------------------------------------- */
