@@ -1,22 +1,32 @@
 /**
  * Servicio para consultar la tasa BCV.
- * - Caché en localStorage (TTL 10 minutos)
- * - Fallback a caché vieja si la red falla
- * - Timeout de 8s para no dejar al usuario esperando indefinidamente
  *
- * Endpoint: https://bcvapi.tech/api/v1/dolar
- * Respuesta esperada: { tasa: number, fecha: string, fuente: string, registrado: boolean }
+ * Arquitectura:
+ *   - El cliente llama a /api/bcv (mismo origen, sin CORS).
+ *   - En dev: Vite proxy → bcvapi.tech (key inyectada por vite.config.js).
+ *   - En prod: Netlify Function → bcvapi.tech (key inyectada server-side).
+ *   - El cliente NUNCA tiene la API key.
+ *
+ * Caché en cliente:
+ *   - localStorage con TTL distinto en dev (10 min) y prod (6 horas).
+ *   - El CDN de Netlify también cachea 12h (para todos los usuarios).
+ *   - Combinado: cuota mensual de 50 consultas BCV alcanza con sobra.
+ *
+ * Fallback offline:
+ *   - Si la red falla y hay caché aunque sea vieja, la devuelve marcada como stale.
  */
 
-const API_URL = import.meta.env.VITE_BCV_API_URL || 'https://bcvapi.tech/api/v1/dolar'
-const API_KEY = import.meta.env.VITE_BCV_API_KEY
+const API_URL = import.meta.env.VITE_BCV_API_URL || '/api/bcv'
+const IS_DEV = import.meta.env.DEV
 const CACHE_KEY = 'bcv-rate-cache-v1'
-const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutos
-const FETCH_TIMEOUT_MS = 8000        // 8 segundos
+const CACHE_TTL_MS = IS_DEV
+  ? 10 * 60 * 1000        // 10 min en desarrollo (testing rápido)
+  : 6 * 60 * 60 * 1000    // 6 horas en producción
+const FETCH_TIMEOUT_MS = 8000
 
 /**
- * Devuelve la tasa BCV. Usa caché si está fresca; si no, consulta API.
- * Si la API falla y hay caché aunque sea vieja, la devuelve marcada como stale.
+ * Devuelve la tasa BCV. Usa caché si está fresca; si no, consulta el endpoint.
+ * Si la red falla y hay caché viejo, lo devuelve marcado como stale.
  *
  * @returns {Promise<{tasa: number, fecha: string, fuente?: string, fetchedAt: number, fromCache: boolean, stale?: boolean}>}
  */
@@ -28,7 +38,7 @@ export async function fetchBCVRate({ forceRefresh = false } = {}) {
   }
 
   try {
-    const data = await fetchFromAPI()
+    const data = await fetchFromEndpoint()
     writeCache(data)
     return { ...data, fromCache: false }
   } catch (networkError) {
@@ -39,11 +49,7 @@ export async function fetchBCVRate({ forceRefresh = false } = {}) {
   }
 }
 
-async function fetchFromAPI() {
-  if (!API_KEY) {
-    throw new ApiError('CONFIG', 'API key no configurada. Revisa el archivo .env.local')
-  }
-
+async function fetchFromEndpoint() {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
@@ -51,10 +57,7 @@ async function fetchFromAPI() {
   try {
     response = await fetch(API_URL, {
       method: 'GET',
-      headers: {
-        'Authorization': API_KEY,
-        'Accept': 'application/json'
-      },
+      headers: { 'Accept': 'application/json' },
       signal: controller.signal
     })
   } catch (err) {
@@ -66,33 +69,38 @@ async function fetchFromAPI() {
     clearTimeout(timeoutId)
   }
 
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      throw new ApiError('AUTH', 'API key inválida o sin permisos')
-    }
-    if (response.status === 429) {
-      throw new ApiError('QUOTA', 'Se alcanzó el límite de consultas del mes')
-    }
-    throw new ApiError('SERVER', `El servidor respondió con error ${response.status}`)
-  }
-
-  let data
+  let body = null
   try {
-    data = await response.json()
+    body = await response.json()
   } catch {
-    throw new ApiError('PARSE', 'Respuesta del servidor no es JSON válido')
+    if (response.ok) {
+      throw new ApiError('PARSE', 'Respuesta no es JSON válido')
+    }
   }
 
-  if (typeof data.tasa !== 'number' || !data.fecha) {
-    throw new ApiError('PARSE', 'Respuesta del servidor no tiene los campos esperados')
+  if (!response.ok) {
+    const code = body?.error || mapStatusToCode(response.status)
+    const message = body?.message || `Respuesta ${response.status}`
+    throw new ApiError(code, message)
+  }
+
+  if (typeof body?.tasa !== 'number' || !body?.fecha) {
+    throw new ApiError('PARSE', 'Respuesta no tiene los campos esperados')
   }
 
   return {
-    tasa: data.tasa,
-    fecha: data.fecha,
-    fuente: data.fuente,
+    tasa: body.tasa,
+    fecha: body.fecha,
+    fuente: body.fuente,
     fetchedAt: Date.now()
   }
+}
+
+function mapStatusToCode(status) {
+  if (status === 401 || status === 403) return 'AUTH'
+  if (status === 429) return 'QUOTA'
+  if (status >= 500) return 'SERVER'
+  return 'SERVER'
 }
 
 function readCache() {
@@ -114,7 +122,7 @@ function writeCache(data) {
       savedAt: Date.now()
     }))
   } catch {
-    // localStorage lleno o deshabilitado: continuamos sin caché
+    // localStorage lleno o deshabilitado: seguimos sin caché
   }
 }
 

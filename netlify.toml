@@ -1,17 +1,49 @@
 [build]
   publish = "dist"
   command = "npm run build"
+  # Las funciones viven en netlify/functions/ (ruta por defecto, explícita para claridad)
+  functions = "netlify/functions"
 
-# Proxy a la API BCV para evitar CORS desde el navegador.
-# La key sigue viviendo solo en el header — Netlify la reenvía 1:1.
-[[redirects]]
-  from = "/api/bcv"
-  to = "https://bcvapi.tech/api/v1/dolar"
-  status = 200
-  force = true
+# ============================================
+# La función bcv-rate.mjs ya define su propia ruta (`config.path = "/api/bcv"`),
+# así que no hace falta un redirect aquí para la API.
+# ============================================
 
-# SPA fallback — todas las rutas sirven index.html para que la PWA funcione.
+# ============================================
+# SPA fallback — toda ruta sirve index.html para que la PWA funcione.
+# `force = false` para que NO intercepte /api/bcv (la función gana).
+# ============================================
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ============================================
+# Headers de seguridad (aplican a todo el sitio)
+# ============================================
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# ============================================
+# Caché agresivo para assets con hash (Vite los nombra con hash de contenido)
+# ============================================
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# El service worker NO se cachea (debe revalidarse en cada visita)
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
