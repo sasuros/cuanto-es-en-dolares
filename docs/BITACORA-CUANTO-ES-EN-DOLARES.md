@@ -115,29 +115,162 @@ Si bcvapi.tech cae o cambia su API, toda la app se rompe.
 
 ---
 
-### **Domingo 18 - Día 2: Desarrollo Fase 1**
-
-_[Por completar]_
+### **Día 2: MVP Completo + Deploy a Producción**
 
 #### ✅ COMPLETADO
 
-#### 🔄 EN PROGRESO
+**Estructura base (1h):**
+- ✅ Proyecto Vite + React 18 inicializado
+- ✅ `package.json`, `.gitignore`, `.env.example` definidos
+- ✅ Estructura de carpetas (`src/components`, `src/services`, `src/utils`)
+- ✅ Vite config con plugin PWA (Workbox + auto-update)
+- ✅ Iconos SVG (favicon + PWA icon en verde marca)
+- ✅ Shell de `App.jsx` + `main.jsx` + reset CSS
 
-#### ❌ BLOQUEADORES
+**Modo oscuro WCAG AAA (30 min):**
+- ✅ Paleta oscura completa con variables CSS
+- ✅ Contrastes medidos en DOM: body texto 16.3:1, placeholder 7.7:1 → AAA
+- ✅ #121212 (Material Design) como fondo base
+- ✅ Texto oscuro sobre botón verde (10.2:1 — más legible que blanco)
+- ✅ Variables de resplandor (`--glow-primary`, `--glow-focus`) preparadas
+- ✅ `color-scheme: dark` declarado
+
+**CalculatorInput (1h):**
+- ✅ Input con formato venezolano (`Intl.NumberFormat('es-VE')` → 1.500.000)
+- ✅ `inputMode="numeric"` → teclado numérico en móvil
+- ✅ Botón X para limpiar (44px touch target)
+- ✅ Botón CALCULAR de 80px con glow verde
+- ✅ Enter dispara el cálculo
+- ✅ Auto-deshabilitado durante loading
+- ✅ Accesibilidad: aria-labels, focus visible, tabular-nums
+
+**ResultDisplay (1h):**
+- ✅ 3 estados: success / loading / error
+- ✅ Resultado USD GIGANTE (56px / 72px en desktop) con text-shadow verde
+- ✅ Tasa BCV destacada en azul (`517,96`)
+- ✅ Fecha de publicación + tiempo relativo ("Consultada hace un momento")
+- ✅ Loading con ⏳ rotando + "Buscando tasa actual…"
+- ✅ Error con ⚠️, borde rojo sutil, mensajes amigables sin tecnicismos
+- ✅ Animación fade-in + slide-up al aparecer
+- ✅ ARIA: role=status (loading), role=alert (error), aria-live correctos
+
+**Integración API BCV (1h):**
+- ✅ `apiService.js` con `fetchBCVRate()`, `clearRateCache()`, `ApiError`
+- ✅ Caché localStorage con TTL configurable
+- ✅ Fallback a caché viejo si la red falla (marca `stale: true`)
+- ✅ 7 tipos de error tipados (NETWORK, TIMEOUT, AUTH, QUOTA, SERVER, PARSE, CONFIG)
+- ✅ `getFriendlyErrorMessage()` traduce a español sin tecnicismos
+- ✅ Timeout de 8s para no bloquear al usuario
+
+**Seguridad — Netlify Function (1.5h):**
+- ✅ CORS detectado y resuelto (la API no soporta llamadas desde browser)
+- ✅ `netlify/functions/bcv-rate.mjs` proxea la API server-side
+- ✅ API key movida de `VITE_BCV_API_KEY` → `BCV_API_KEY` (sin prefijo)
+- ✅ Vite proxy en dev también inyecta la key vía `loadEnv()` — nunca llega al cliente
+- ✅ Verificado con `grep` en `dist/`: **0 matches de la key** en el bundle
+- ✅ `Netlify-CDN-Cache-Control: public, s-maxage=43200, durable` → CDN comparte cache 12h
+- ✅ Decisión arquitectónica: CDN cache > Netlify Blobs+cron (10% del código, 95% del beneficio)
+
+**Documentación y git (30 min):**
+- ✅ README.md en raíz con propuesta de valor, setup, stack, roadmap
+- ✅ `git init` + identidad local `Scanleads <sasuros@gmail.com>` (sin tocar config global)
+- ✅ 3 commits limpios: MVP inicial, fix de seguridad, README
+- ✅ Push a `github.com/sasuros/cuanto-es-en-dolares` (branch `main`)
+
+**Deploy a producción (15 min):**
+- ✅ Sitio creado en Netlify desde GitHub (auto-detectado vía `netlify.toml`)
+- ✅ Env var `BCV_API_KEY` configurada (scope: Functions)
+- ✅ Build exitoso: 150 KB JS / 48 KB gzipped
+- ✅ PWA generada: 9 entries precacheadas
+- ✅ Function `/api/bcv` respondiendo correctamente
+
+**🌐 URL DE PRODUCCIÓN:**
+**https://cuantoeseldolares.netlify.app**
+
+**📸 Prueba real en producción:**
+- Input: `1.500.000 Bs`
+- Resultado: **$2,895.97 USD** ✅
+- Tasa BCV: `517,96` Bs/USD ✅
+- _Screenshot: pendiente subir a `docs/screenshots/produccion.png`_
 
 #### 📝 NOTAS DEL DÍA
 
-#### 🎯 PRÓXIMOS PASOS
+**Lección aprendida 1 — La API BCV bloquea CORS:**
+Funciona con `curl` pero el navegador hace preflight `OPTIONS` que el servidor responde con 404. Solución: proxy. Primero usé Vite proxy en dev + Netlify redirect en prod, pero el redirect dejaba la key en el bundle. Migré a una Netlify Function que mantiene la key server-side.
+
+**Lección aprendida 2 — `VITE_*` env vars son públicas:**
+Cualquier variable con prefijo `VITE_` en `.env.local` termina inyectada en el bundle JS. La API key estaba expuesta. Renombré a `BCV_API_KEY` (sin prefijo) y la function la lee de `process.env`. En dev, `loadEnv()` la inyecta como header HTTP en el proxy.
+
+**Decisión clave — Caché compartido vs distribuido:**
+Una propuesta alternativa fue usar Netlify Blobs + Scheduled Function (cron diario a las 4 PM VET). Lo rechazamos: ~250 líneas de código operacional para resolver un problema que aún no existe (5 usuarios reales hoy, no 1000). En su lugar:
+- CDN cache de Netlify (12h) → respuesta compartida entre todos los usuarios
+- localStorage del cliente (10min dev / 6h prod)
+- Quota estimada: ~44 consultas/mes (cuota gratis: 50) ✅
+
+Si en 6 meses llegamos a 500 usuarios reales y rebasamos cuota → ENTONCES migramos a Blobs. Por ahora: simple, funcional, mantenible.
+
+**Métricas reales:**
+- Build de producción: 150 KB (48 KB gzipped) — muy ligero
+- Primer paint estimado: <1 segundo en 4G
+- Cumple criterio MAESTRO: "Carga en menos de 2 segundos" ✅
+- Bundle 100% sin la API key (verificado con `grep` en `dist/`)
+
+**Imprevisto resuelto:**
+El path del proyecto (`05_PROYECTO_ cuanto-es-en-dolares`) tiene un espacio que rompió el preview server con `npm --prefix` y con `cmd /c`. Solucionado usando PowerShell en `.claude/launch.json`. Tomar nota: evitar espacios en nombres de carpetas futuras.
+
+#### 🎯 PRÓXIMOS PASOS (Día 3+)
+
+> ⚠️ **REGLA DEL PROYECTO:** No se agregan features hasta validar Fase 1 con
+> usuario real. Tentación de agregar conversión inversa USD→Bs fue rechazada
+> conscientemente — eso es Fase 4 después de feedback.
+
+**Inmediato (días) — VALIDACIÓN, no desarrollo:**
+- [ ] Tu mamá prueba la app en producción (prueba de fuego real)
+- [ ] Observar QUÉ no entiende, QUÉ duda, QUÉ confunde
+- [ ] Capturar screenshots de la app live para el README
+- [ ] Compartir URL con 3-5 testers familiares por WhatsApp
+- [ ] Anotar TODO lo que confunde a usuarios mayores (la app perfecta nace de feedback)
+- [ ] Decisión post-feedback: ¿qué duele más? Eso es lo que va en v0.2.0.
+
+**Corto plazo (semana 1):**
+- [ ] Dominio custom (sugerido: `cuantoesendolares.com`)
+- [ ] Renombrar subdominio Netlify de `cute-pie-8c46bd` a algo memorable
+- [ ] Iterar mejoras basadas en feedback de testers
+
+**Fase 2 (siguientes 2 semanas):**
+- [ ] Investigar API/scraper para tasa Binance P2P
+- [ ] Implementar UI dual: "Según el banco (BCV)" vs "En el mercado real (Binance)"
+- [ ] Mostrar % de diferencia con explicación simple
+- [ ] Decisión: ¿usar caché compartido también para Binance o consulta directa?
+
+**Fase 3 (cuando Fase 2 esté validada):**
+- [ ] Investigar Tesseract.js para OCR de facturas
+- [ ] Prototipo de cámara → detectar monto total
 
 ---
 
 ## 📊 MÉTRICAS DE PROGRESO
 
-**Fase 1 (MVP Ultra Simple):**
-- Progreso: 10% (solo investigación y docs)
-- Estimado restante: 4-6 horas
-- Bloqueadores: Ninguno
-- Confianza: 🟢 Alta
+**Fase 1 (MVP Ultra Simple):** ✅ **COMPLETADA**
+- Progreso: **100%** 🎉
+- Tiempo real invertido: ~6 horas (estimado original: 4-6h) ✅
+- Bloqueadores resueltos: CORS, exposición de API key
+- En producción: https://cuantoeseldolares.netlify.app
+- **🛑 Estado:** Desarrollo **PAUSADO** conscientemente. No se agregan features
+  hasta tener feedback de al menos 1 usuario mayor real (la mamá de Sasuros).
+  La conversión inversa USD→Bs queda en Fase 4 según roadmap original.
+
+**Fase 2 (Comparación BCV vs Binance):**
+- Progreso: 0%
+- Dependencia: Validar Fase 1 con usuarios reales (1-2 semanas)
+- Riesgo: 🟡 Medio (API Binance no oficial — scraper o terceros)
+
+**Fase 3 (OCR):**
+- Progreso: 0%
+- Dependencia: Fase 2 estable + feedback de usuarios sobre fricción al tipear
+- Riesgo: 🟡 Medio (precisión OCR con facturas reales)
+
+**Versión actual:** `v0.1.0` (etiquetada en git)
 
 **Fase 2 (Comparación BCV vs Binance):**
 - Progreso: 0%
