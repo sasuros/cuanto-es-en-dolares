@@ -72,25 +72,26 @@ export default function CalculatorInput({
 
   return (
     <div className="calculator-input">
-      <div className="calculator-input__label-row">
-        <label className="calculator-input__label" htmlFor="amount-input">
-          {isBsMode ? '¿Cuántos bolívares?' : '¿Cuántos dólares?'}
-        </label>
-        <button
-          type="button"
-          className="calculator-input__toggle"
-          onClick={onToggleMode}
-          disabled={disabled}
-          aria-label={
-            isBsMode
-              ? 'Cambiar a conversión de dólares a bolívares'
-              : 'Cambiar a conversión de bolívares a dólares'
-          }
-          title="Cambiar dirección de conversión"
-        >
-          <span className="calculator-input__toggle-icon" aria-hidden="true">⇄</span>
-        </button>
-      </div>
+      <label className="calculator-input__label" htmlFor="amount-input">
+        {isBsMode ? '¿Cuántos bolívares?' : '¿Cuántos dólares?'}
+      </label>
+
+      <button
+        type="button"
+        className="calculator-input__toggle"
+        onClick={onToggleMode}
+        disabled={disabled}
+        aria-label={
+          isBsMode
+            ? 'Cambiar a conversión de dólares a bolívares'
+            : 'Cambiar a conversión de bolívares a dólares'
+        }
+      >
+        <span className="calculator-input__toggle-icon" aria-hidden="true">⇄</span>
+        <span className="calculator-input__toggle-text">
+          {isBsMode ? 'Cambiar a dólares' : 'Cambiar a bolívares'}
+        </span>
+      </button>
 
       <div className="calculator-input__field-wrapper">
         <input

@@ -216,14 +216,6 @@ input:focus-visible {
   gap: var(--space-md);
 }
 
-.calculator-input__label-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-}
-
 .calculator-input__label {
   font-size: var(--font-size-label);
   font-weight: var(--font-weight-medium);
@@ -231,29 +223,30 @@ input:focus-visible {
   text-align: center;
 }
 
+/* Botón pill centrado para cambiar dirección de conversión.
+   Icono + texto: tu mamá no tiene que adivinar qué hace el ⇄ solo. */
 .calculator-input__toggle {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-primary-bright);
+  gap: 12px;
+  margin: 0 auto;
+  padding: 14px 22px;
+  min-height: 56px;
+  max-width: 320px;
+  width: 100%;
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
   background: var(--color-bg-soft);
   border: 2px solid var(--color-border);
-  border-radius: 50%;
-  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
 }
 
 .calculator-input__toggle:hover:not(:disabled) {
   border-color: var(--color-primary);
   background: var(--color-bg-elevated);
-  color: var(--color-text);
 }
 
 .calculator-input__toggle:hover:not(:disabled) .calculator-input__toggle-icon {
@@ -261,7 +254,7 @@ input:focus-visible {
 }
 
 .calculator-input__toggle:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.92);
+  transform: scale(0.97);
 }
 
 .calculator-input__toggle:disabled {
@@ -270,9 +263,21 @@ input:focus-visible {
 }
 
 .calculator-input__toggle-icon {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-bright);
   transition: transform 0.3s ease;
   line-height: 1;
+}
+
+.calculator-input__toggle-text {
+  flex: 0 1 auto;
+  text-align: left;
 }
 
 .calculator-input__field-wrapper {
