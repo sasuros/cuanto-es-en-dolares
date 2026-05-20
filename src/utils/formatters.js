@@ -130,3 +130,68 @@ export function formatRate(value) {
   if (!Number.isFinite(num)) return '0,00'
   return rateFormatter.format(num)
 }
+
+/**
+ * Vigencia de la tasa BCV.
+ *
+ * El BCV publica la tasa del día siguiente entre las 3-4 PM VET.
+ * Los comercios en Venezuela cobran con la tasa VIGENTE HOY, no con la
+ * que ya publicó el BCV "para mañana". Así que necesitamos avisarle al
+ * usuario si la tasa que ve es para hoy o para mañana, para que decida.
+ *
+ * Devuelve: 'today' | 'future' | 'past' | 'unknown'
+ */
+const SPANISH_MONTHS = {
+  enero: 0, febrero: 1, marzo: 2, abril: 3,
+  mayo: 4, junio: 5, julio: 6, agosto: 7,
+  septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11
+}
+
+function parseSpanishDate(str) {
+  if (!str || typeof str !== 'string') return null
+  // "Martes, 19 Mayo 2026" → tomamos lo que viene después de la coma
+  const afterComma = str.includes(',') ? str.split(',')[1].trim() : str.trim()
+  const parts = afterComma.split(/\s+/)
+  if (parts.length !== 3) return null
+  const day = parseInt(parts[0], 10)
+  const monthIdx = SPANISH_MONTHS[parts[1].toLowerCase()]
+  const year = parseInt(parts[2], 10)
+  if (!Number.isFinite(day) || monthIdx === undefined || !Number.isFinite(year)) {
+    return null
+  }
+  return { year, month: monthIdx, day }
+}
+
+function todayInVenezuela() {
+  // Forzamos zona horaria America/Caracas — no usamos el reloj del usuario
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Caracas',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date())
+  const obj = { year: 0, month: 0, day: 0 }
+  for (const p of parts) {
+    if (p.type === 'year') obj.year = parseInt(p.value, 10)
+    if (p.type === 'month') obj.month = parseInt(p.value, 10) - 1
+    if (p.type === 'day') obj.day = parseInt(p.value, 10)
+  }
+  return obj
+}
+
+function compareYMD(a, b) {
+  if (a.year !== b.year) return a.year < b.year ? -1 : 1
+  if (a.month !== b.month) return a.month < b.month ? -1 : 1
+  if (a.day !== b.day) return a.day < b.day ? -1 : 1
+  return 0
+}
+
+export function getRateValidity(fechaString) {
+  const parsed = parseSpanishDate(fechaString)
+  if (!parsed) return 'unknown'
+  const today = todayInVenezuela()
+  const cmp = compareYMD(parsed, today)
+  if (cmp > 0) return 'future'
+  if (cmp < 0) return 'past'
+  return 'today'
+}

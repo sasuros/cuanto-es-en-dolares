@@ -2,7 +2,8 @@ import {
   formatUSD,
   formatRate,
   formatRelativeTime,
-  formatBolivares
+  formatBolivares,
+  getRateValidity
 } from '../utils/formatters'
 
 /**
@@ -44,6 +45,7 @@ export default function ResultDisplay({ result, loading, error, mode }) {
   const { amount, converted, tasa, fecha, fetchedAt } = result
   const relativeTime = formatRelativeTime(fetchedAt)
   const isBsToUsd = mode === 'bs-to-usd'
+  const validity = getRateValidity(fecha)
 
   return (
     <div
@@ -74,6 +76,18 @@ export default function ResultDisplay({ result, loading, error, mode }) {
         <p className="result-display__rate">
           Tasa BCV: <strong>{formatRate(tasa)}</strong> Bs por dólar
         </p>
+
+        {validity === 'today' && (
+          <p className="result-display__validity result-display__validity--today">
+            ✅ Vigente: HOY
+          </p>
+        )}
+        {validity === 'future' && (
+          <p className="result-display__validity result-display__validity--future">
+            ⚠️ Vigente desde: mañana
+          </p>
+        )}
+
         {fecha && (
           <p className="result-display__date">
             Publicada: {fecha}

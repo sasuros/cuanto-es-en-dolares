@@ -477,6 +477,20 @@ input:focus-visible {
   color: var(--color-text-dim);
 }
 
+.result-display__validity {
+  font-size: var(--font-size-help);
+  font-weight: var(--font-weight-bold);
+  margin-top: 2px;
+}
+
+.result-display__validity--today {
+  color: var(--color-success);
+}
+
+.result-display__validity--future {
+  color: var(--color-accent);
+}
+
 /* ---------- Estado: loading ---------- */
 .result-display--loading {
   border: 1px solid var(--color-border-soft);
