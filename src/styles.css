@@ -491,6 +491,35 @@ input:focus-visible {
   color: var(--color-accent);
 }
 
+/* Variante info: card de tasa al abrir la app (más sobrio que --success) */
+.result-display--info {
+  border: 1px solid var(--color-border-soft);
+}
+
+/* La tasa en el card inicial se muestra grande pero no tan grande
+   como el resultado del cálculo (el cálculo es el wow moment) */
+.initial-rate-card__amount {
+  font-size: 44px;
+  color: var(--color-primary-bright);
+  letter-spacing: -1px;
+}
+
+.initial-rate-card__currency {
+  font-size: 24px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-soft);
+  letter-spacing: 0;
+}
+
+@media (min-width: 768px) {
+  .initial-rate-card__amount {
+    font-size: 56px;
+  }
+  .initial-rate-card__currency {
+    font-size: 28px;
+  }
+}
+
 /* ---------- Estado: loading ---------- */
 .result-display--loading {
   border: 1px solid var(--color-border-soft);

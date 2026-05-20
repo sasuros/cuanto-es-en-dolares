@@ -18,6 +18,7 @@ export default function CalculatorInput({
   mode,
   onCalculate,
   onToggleMode,
+  onClear,
   disabled = false
 }) {
   const [raw, setRaw] = useState('')
@@ -56,6 +57,8 @@ export default function CalculatorInput({
   function handleClear() {
     setRaw('')
     inputRef.current?.focus()
+    // Notifica a App para que limpie también el resultado (vuelve la card de tasa)
+    onClear?.()
   }
 
   function handleCalculate() {
