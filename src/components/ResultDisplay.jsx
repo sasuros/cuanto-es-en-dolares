@@ -1,6 +1,16 @@
-import { formatUSD, formatRate, formatRelativeTime, formatBolivares } from '../utils/formatters'
+import {
+  formatUSD,
+  formatRate,
+  formatRelativeTime,
+  formatBolivares
+} from '../utils/formatters'
 
-export default function ResultDisplay({ result, loading, error }) {
+/**
+ * Resultado de la conversión bidireccional.
+ * mode = 'bs-to-usd': muestra "$X por Y Bs"
+ * mode = 'usd-to-bs': muestra "Y Bs para $X"
+ */
+export default function ResultDisplay({ result, loading, error, mode }) {
   if (loading) {
     return (
       <div
@@ -31,8 +41,9 @@ export default function ResultDisplay({ result, loading, error }) {
 
   if (!result) return null
 
-  const { bolivares, usd, tasa, fecha, fetchedAt } = result
+  const { amount, converted, tasa, fecha, fetchedAt } = result
   const relativeTime = formatRelativeTime(fetchedAt)
+  const isBsToUsd = mode === 'bs-to-usd'
 
   return (
     <div
@@ -41,14 +52,20 @@ export default function ResultDisplay({ result, loading, error }) {
       aria-live="polite"
       aria-label="Resultado de la conversión"
     >
-      <p className="result-display__label">Son aproximadamente</p>
+      <p className="result-display__label">
+        {isBsToUsd ? 'Son aproximadamente' : 'Necesitas'}
+      </p>
 
       <p className="result-display__amount">
-        {formatUSD(usd)}
+        {isBsToUsd ? formatUSD(converted) : `${formatBolivares(converted)} Bs`}
       </p>
 
       <p className="result-display__bolivares">
-        por <strong>{formatBolivares(bolivares)} Bs</strong>
+        {isBsToUsd ? (
+          <>por <strong>{formatBolivares(amount)} Bs</strong></>
+        ) : (
+          <>para <strong>{formatUSD(amount)}</strong></>
+        )}
       </p>
 
       <div className="result-display__divider" aria-hidden="true" />

@@ -1,17 +1,56 @@
-import { useState, useRef } from 'react'
-import { formatBolivares, parseBolivares } from '../utils/formatters'
+import { useState, useRef, useEffect } from 'react'
+import {
+  formatBolivares,
+  parseBolivares,
+  formatUSDInput,
+  parseUSDInput
+} from '../utils/formatters'
 
-export default function CalculatorInput({ onCalculate, disabled = false }) {
+/**
+ * Input bidireccional Bs ↔ USD.
+ * - mode = 'bs-to-usd': usuario ingresa Bs, formato venezolano (1.500.000)
+ * - mode = 'usd-to-bs': usuario ingresa USD, formato americano (1,500.50)
+ *
+ * El estado del modo vive en App (single source of truth).
+ * Al cambiar de modo, el input se limpia automáticamente.
+ */
+export default function CalculatorInput({
+  mode,
+  onCalculate,
+  onToggleMode,
+  disabled = false
+}) {
   const [raw, setRaw] = useState('')
   const inputRef = useRef(null)
 
-  const formatted = formatBolivares(raw)
+  const isBsMode = mode === 'bs-to-usd'
+
+  // Limpia el input cuando cambia el modo (evita arrastrar valor entre monedas)
+  useEffect(() => {
+    setRaw('')
+  }, [mode])
+
+  const formatted = isBsMode ? formatBolivares(raw) : formatUSDInput(raw)
   const hasValue = raw.length > 0
   const isButtonDisabled = disabled || !hasValue
 
   function handleChange(e) {
-    const digits = e.target.value.replace(/\D/g, '')
-    setRaw(digits)
+    const value = e.target.value
+    if (isBsMode) {
+      // Bs: solo dígitos
+      setRaw(value.replace(/\D/g, ''))
+    } else {
+      // USD: dígitos + un punto decimal, máximo 2 decimales
+      const cleaned = value.replace(/[^\d.]/g, '')
+      const firstDot = cleaned.indexOf('.')
+      if (firstDot === -1) {
+        setRaw(cleaned)
+      } else {
+        const intPart = cleaned.slice(0, firstDot)
+        const decPart = cleaned.slice(firstDot + 1).replace(/\./g, '').slice(0, 2)
+        setRaw(intPart + '.' + decPart)
+      }
+    }
   }
 
   function handleClear() {
@@ -20,7 +59,7 @@ export default function CalculatorInput({ onCalculate, disabled = false }) {
   }
 
   function handleCalculate() {
-    const amount = parseBolivares(raw)
+    const amount = isBsMode ? parseBolivares(raw) : parseUSDInput(raw)
     if (amount > 0) onCalculate(amount)
   }
 
@@ -33,18 +72,34 @@ export default function CalculatorInput({ onCalculate, disabled = false }) {
 
   return (
     <div className="calculator-input">
-      <label className="calculator-input__label" htmlFor="bolivares-input">
-        ¿Cuántos bolívares?
-      </label>
+      <div className="calculator-input__label-row">
+        <label className="calculator-input__label" htmlFor="amount-input">
+          {isBsMode ? '¿Cuántos bolívares?' : '¿Cuántos dólares?'}
+        </label>
+        <button
+          type="button"
+          className="calculator-input__toggle"
+          onClick={onToggleMode}
+          disabled={disabled}
+          aria-label={
+            isBsMode
+              ? 'Cambiar a conversión de dólares a bolívares'
+              : 'Cambiar a conversión de bolívares a dólares'
+          }
+          title="Cambiar dirección de conversión"
+        >
+          <span className="calculator-input__toggle-icon" aria-hidden="true">⇄</span>
+        </button>
+      </div>
 
       <div className="calculator-input__field-wrapper">
         <input
           ref={inputRef}
-          id="bolivares-input"
+          id="amount-input"
           className="calculator-input__field"
           type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
+          inputMode={isBsMode ? 'numeric' : 'decimal'}
+          pattern={isBsMode ? '[0-9]*' : '[0-9.]*'}
           autoComplete="off"
           autoCorrect="off"
           spellCheck="false"
@@ -52,12 +107,12 @@ export default function CalculatorInput({ onCalculate, disabled = false }) {
           value={formatted}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          aria-label="Cantidad en bolívares"
-          aria-describedby="bolivares-currency"
+          aria-label={isBsMode ? 'Cantidad en bolívares' : 'Cantidad en dólares'}
+          aria-describedby="amount-currency"
         />
 
-        <span id="bolivares-currency" className="calculator-input__currency">
-          Bs
+        <span id="amount-currency" className="calculator-input__currency">
+          {isBsMode ? 'Bs' : '$'}
         </span>
 
         {hasValue && (

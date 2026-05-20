@@ -4,20 +4,33 @@ import ResultDisplay from './components/ResultDisplay.jsx'
 import { fetchBCVRate, getFriendlyErrorMessage } from './services/apiService.js'
 
 export default function App() {
+  const [mode, setMode] = useState('bs-to-usd')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  async function handleCalculate(bolivares) {
+  function handleToggleMode() {
+    setMode(prev => (prev === 'bs-to-usd' ? 'usd-to-bs' : 'bs-to-usd'))
+    // Al cambiar dirección, el resultado anterior ya no aplica
+    setResult(null)
+    setError(null)
+  }
+
+  async function handleCalculate(amount) {
     setError(null)
     setResult(null)
     setLoading(true)
 
     try {
       const rate = await fetchBCVRate()
+      const converted = mode === 'bs-to-usd'
+        ? amount / rate.tasa   // Bs → USD: divide
+        : amount * rate.tasa   // USD → Bs: multiplica
+
       setResult({
-        bolivares,
-        usd: bolivares / rate.tasa,
+        mode,
+        amount,
+        converted,
         tasa: rate.tasa,
         fecha: rate.fecha,
         fetchedAt: rate.fetchedAt,
@@ -36,12 +49,17 @@ export default function App() {
     <main className="app">
       <header className="app-header">
         <h1 className="app-title">¿Cuánto es en Dólares?</h1>
-        <p className="app-subtitle">Convierte bolívares a dólares</p>
+        <p className="app-subtitle">Convierte bolívares y dólares</p>
       </header>
 
       <section className="app-content">
-        <CalculatorInput onCalculate={handleCalculate} disabled={loading} />
-        <ResultDisplay result={result} loading={loading} error={error} />
+        <CalculatorInput
+          mode={mode}
+          onCalculate={handleCalculate}
+          onToggleMode={handleToggleMode}
+          disabled={loading}
+        />
+        <ResultDisplay result={result} loading={loading} error={error} mode={mode} />
       </section>
 
       <footer className="app-footer">
