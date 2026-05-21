@@ -105,15 +105,20 @@ export default function App() {
     }
   }
 
-  // Modo custom: calcula con la tasa que el usuario ingresa (sin API).
-  // Solo Bs → USD por ahora.
-  function handleCustomCalculate(amount, customTasa) {
+  // Modo custom v0.4.2: bidireccional (bs ↔ usd) con tasa propia.
+  //   direction = 'bs'  → amount es Bs, resultado en USD (amount / tasa)
+  //   direction = 'usd' → amount es USD, resultado en Bs (amount * tasa)
+  function handleCustomCalculate(amount, customTasa, direction = 'bs') {
     setError(null)
-    setLoading(false) // no hay API call
+    setLoading(false)
 
-    const converted = amount / customTasa
+    const converted = direction === 'bs'
+      ? amount / customTasa
+      : amount * customTasa
+
     setResult({
       mode: 'custom',
+      customDirection: direction,
       amount,
       converted,
       tasa: customTasa,

@@ -7,28 +7,26 @@ import {
 } from '../utils/formatters'
 
 /**
- * Input de cálculo. v0.4.1 soporta 3 modos:
- *   - 'bs-to-usd' → un input (Bs) + chips Bs
- *   - 'usd-to-bs' → un input (USD) + chips USD
- *   - 'custom'    → DOS inputs (monto Bs + tasa custom), sin chips
+ * Input de cálculo. v0.4.2 soporta:
+ *   - 'bs-to-usd' → un input Bs (ahora con decimales) + chips Bs
+ *   - 'usd-to-bs' → un input USD + chips USD
+ *   - 'custom'    → DOS inputs (monto + tasa), con sub-toggle Bs↔USD
  *
- * El modo 'custom' usa una tasa que ingresa el usuario en lugar del BCV.
- * Se guarda la última tasa custom en localStorage para reuso.
+ * El modo 'custom' es bidireccional: el usuario elige si "tiene" Bs o $
+ * y la tasa custom se aplica en la dirección que corresponde.
  */
 
 const DEBOUNCE_MS = 300
 
-// v0.4.1: chips ajustados por feedback de la usuaria.
-//   - "100 Bs no sirve para nada, empezar desde 500"
-//   - Topes más altos para usuarios con valores en millones
 const QUICK_CHIPS_BS = [500, 1000, 5000, 10000, 50000]
 const QUICK_CHIPS_USD = [1, 5, 10, 20, 50]
 
-// v0.4.1: persistencia del último tasa custom usada
+// Persistencias del modo custom
 const CUSTOM_RATE_KEY = 'custom-rate-last-used'
+const CUSTOM_DIRECTION_KEY = 'custom-direction-last-used'
 const CUSTOM_RATE_MIN = 1
 const CUSTOM_RATE_MAX = 10000
-const CUSTOM_RATE_PLACEHOLDER = '700' // USDT típico en VE
+const CUSTOM_RATE_PLACEHOLDER = '700'
 
 function readSavedCustomRate() {
   try {
@@ -43,11 +41,49 @@ function readSavedCustomRate() {
 }
 
 function writeSavedCustomRate(value) {
+  try { localStorage.setItem(CUSTOM_RATE_KEY, String(value)) } catch {}
+}
+
+function readSavedCustomDirection() {
   try {
-    localStorage.setItem(CUSTOM_RATE_KEY, String(value))
+    const dir = localStorage.getItem(CUSTOM_DIRECTION_KEY)
+    return dir === 'usd' ? 'usd' : 'bs' // default: bs
   } catch {
-    // ignorar
+    return 'bs'
   }
+}
+
+function writeSavedCustomDirection(dir) {
+  try { localStorage.setItem(CUSTOM_DIRECTION_KEY, dir) } catch {}
+}
+
+// v0.4.2: input Bs ahora acepta decimales con coma o punto.
+// Normaliza a coma como separador decimal (estilo es-VE).
+function sanitizeBsInputDecimal(value) {
+  let cleaned = value.replace(/[^\d.,]/g, '')
+  if (!cleaned) return ''
+
+  const lastComma = cleaned.lastIndexOf(',')
+  const lastDot = cleaned.lastIndexOf('.')
+  const lastSep = Math.max(lastComma, lastDot)
+
+  if (lastSep === -1) {
+    return cleaned.replace(/[^\d]/g, '')
+  }
+
+  const intPart = cleaned.slice(0, lastSep).replace(/[^\d]/g, '')
+  const decPart = cleaned.slice(lastSep + 1).replace(/[^\d]/g, '').slice(0, 2)
+
+  return intPart + ',' + decPart
+}
+
+function sanitizeUsdInput(value) {
+  const noJunk = value.replace(/[^\d.]/g, '')
+  const firstDot = noJunk.indexOf('.')
+  if (firstDot === -1) return noJunk
+  const intPart = noJunk.slice(0, firstDot)
+  const decPart = noJunk.slice(firstDot + 1).replace(/\./g, '').slice(0, 2)
+  return intPart + '.' + decPart
 }
 
 export default function CalculatorInput({
@@ -59,6 +95,7 @@ export default function CalculatorInput({
 }) {
   const [raw, setRaw] = useState('')
   const [customTasaRaw, setCustomTasaRaw] = useState(() => readSavedCustomRate())
+  const [customDirection, setCustomDirection] = useState(() => readSavedCustomDirection())
   const inputRef = useRef(null)
   const tasaInputRef = useRef(null)
   const debounceRef = useRef(null)
@@ -67,7 +104,9 @@ export default function CalculatorInput({
   const isUsdMode = mode === 'usd-to-bs'
   const isCustomMode = mode === 'custom'
 
-  // Limpia el monto cuando cambia el modo (no la tasa custom — eso es persistente)
+  // En custom mode, el "modo del amount input" depende del sub-toggle
+  const customAmountIsBs = customDirection === 'bs'
+
   useEffect(() => {
     setRaw('')
     if (debounceRef.current) {
@@ -78,17 +117,34 @@ export default function CalculatorInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
+  // Si cambia la dirección dentro de custom, limpiar amount también
+  useEffect(() => {
+    if (isCustomMode) {
+      setRaw('')
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+      onClear?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customDirection])
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [])
 
-  const formatted = isBsMode
-    ? formatBolivares(raw)
-    : isUsdMode
-    ? formatUSDInput(raw)
-    : formatBolivares(raw) // custom mode: amount es Bs
+  // Cálculo del valor formateado para mostrar en el input
+  let formatted
+  if (isBsMode) {
+    formatted = formatBolivares(raw)
+  } else if (isUsdMode) {
+    formatted = formatUSDInput(raw)
+  } else if (isCustomMode) {
+    formatted = customAmountIsBs ? formatBolivares(raw) : formatUSDInput(raw)
+  }
 
   const hasValue = raw.length > 0
   const customTasaNum = parseFloat(customTasaRaw)
@@ -97,10 +153,10 @@ export default function CalculatorInput({
     customTasaNum >= CUSTOM_RATE_MIN &&
     customTasaNum <= CUSTOM_RATE_MAX
 
-  function scheduleCalculation(currentRaw, currentTasaRaw) {
+  function scheduleCalculation(currentRaw, currentTasaRaw, currentDirection) {
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
-    if (currentRaw === '' || currentRaw === '.') {
+    if (currentRaw === '' || currentRaw === '.' || currentRaw === ',') {
       onClear?.()
       return
     }
@@ -108,7 +164,9 @@ export default function CalculatorInput({
     debounceRef.current = setTimeout(() => {
       if (isCustomMode) {
         const tasa = parseFloat(currentTasaRaw)
-        const amount = parseBolivares(currentRaw)
+        const amount = currentDirection === 'bs'
+          ? parseBolivares(currentRaw)
+          : parseUSDInput(currentRaw)
         if (
           amount > 0 &&
           Number.isFinite(tasa) &&
@@ -116,7 +174,7 @@ export default function CalculatorInput({
           tasa <= CUSTOM_RATE_MAX
         ) {
           writeSavedCustomRate(tasa)
-          onCustomCalculate?.(amount, tasa)
+          onCustomCalculate?.(amount, tasa, currentDirection)
         } else {
           onClear?.()
         }
@@ -129,35 +187,30 @@ export default function CalculatorInput({
     }, DEBOUNCE_MS)
   }
 
-  function sanitizeBsInput(value) {
-    return value.replace(/\D/g, '')
-  }
-
-  function sanitizeUsdInput(value) {
-    const noJunk = value.replace(/[^\d.]/g, '')
-    const firstDot = noJunk.indexOf('.')
-    if (firstDot === -1) return noJunk
-    const intPart = noJunk.slice(0, firstDot)
-    const decPart = noJunk.slice(firstDot + 1).replace(/\./g, '').slice(0, 2)
-    return intPart + '.' + decPart
-  }
-
-  function sanitizeTasaInput(value) {
-    // tasa: decimal con hasta 2 decimales
-    return sanitizeUsdInput(value)
-  }
-
   function handleChange(e) {
     const value = e.target.value
-    const cleaned = isUsdMode ? sanitizeUsdInput(value) : sanitizeBsInput(value)
+    let cleaned
+    if (isUsdMode || (isCustomMode && !customAmountIsBs)) {
+      cleaned = sanitizeUsdInput(value)
+    } else {
+      // bs-to-usd O custom con dirección bs → ambos usan formato Bs con decimales
+      cleaned = sanitizeBsInputDecimal(value)
+    }
     setRaw(cleaned)
-    scheduleCalculation(cleaned, customTasaRaw)
+    scheduleCalculation(cleaned, customTasaRaw, customDirection)
   }
 
   function handleTasaChange(e) {
-    const cleaned = sanitizeTasaInput(e.target.value)
+    const cleaned = sanitizeUsdInput(e.target.value)
     setCustomTasaRaw(cleaned)
-    scheduleCalculation(raw, cleaned)
+    scheduleCalculation(raw, cleaned, customDirection)
+  }
+
+  function handleDirectionChange(newDirection) {
+    if (newDirection === customDirection) return
+    setCustomDirection(newDirection)
+    writeSavedCustomDirection(newDirection)
+    // amount se limpia por el useEffect; resultado también
   }
 
   function handleClear() {
@@ -186,25 +239,61 @@ export default function CalculatorInput({
     return `$${value}`
   }
 
-  // ====== Render: modo custom (dos inputs) ======
+  // ====== Render: modo custom (dos inputs + sub-toggle Bs↔USD) ======
   if (isCustomMode) {
     return (
       <div className="calculator-input calculator-input--custom">
+        <div className="custom-direction">
+          <p className="custom-direction__label">¿Yo tengo?</p>
+          <div
+            className="custom-direction__group"
+            role="radiogroup"
+            aria-label="Dirección de conversión con tasa custom"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={customAmountIsBs}
+              className={
+                'custom-direction__btn' +
+                (customAmountIsBs ? ' custom-direction__btn--active' : '')
+              }
+              onClick={() => handleDirectionChange('bs')}
+              disabled={disabled}
+            >
+              Bolívares (Bs)
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!customAmountIsBs}
+              className={
+                'custom-direction__btn' +
+                (!customAmountIsBs ? ' custom-direction__btn--active' : '')
+              }
+              onClick={() => handleDirectionChange('usd')}
+              disabled={disabled}
+            >
+              Dólares ($)
+            </button>
+          </div>
+        </div>
+
         <div className="calculator-input__field-wrapper">
           <input
             ref={inputRef}
             id="amount-input"
             className="calculator-input__field"
             type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
+            inputMode="decimal"
+            pattern="[0-9.,]*"
             autoComplete="off"
             autoCorrect="off"
             spellCheck="false"
             placeholder="0"
             value={formatted}
             onChange={handleChange}
-            aria-label="Cantidad en bolívares"
+            aria-label={customAmountIsBs ? 'Cantidad en bolívares' : 'Cantidad en dólares'}
             disabled={disabled}
           />
 
@@ -221,14 +310,13 @@ export default function CalculatorInput({
             </button>
           )}
 
-          <span className="calculator-input__currency">Bs</span>
+          <span className="calculator-input__currency">
+            {customAmountIsBs ? 'Bs' : '$'}
+          </span>
         </div>
 
         <div className="calculator-input__tasa-row">
-          <label
-            className="calculator-input__tasa-label"
-            htmlFor="custom-tasa-input"
-          >
+          <label className="calculator-input__tasa-label" htmlFor="custom-tasa-input">
             ¿Tu tasa?
           </label>
           <div className="calculator-input__tasa-wrapper">
@@ -261,7 +349,7 @@ export default function CalculatorInput({
     )
   }
 
-  // ====== Render: modo BCV (Bs o USD) — un solo input + chips ======
+  // ====== Render: modos BCV (Bs o USD) — un input + chips ======
   const chips = isBsMode ? QUICK_CHIPS_BS : QUICK_CHIPS_USD
 
   return (
@@ -272,8 +360,8 @@ export default function CalculatorInput({
           id="amount-input"
           className="calculator-input__field"
           type="text"
-          inputMode={isBsMode ? 'numeric' : 'decimal'}
-          pattern={isBsMode ? '[0-9]*' : '[0-9.]*'}
+          inputMode="decimal"
+          pattern="[0-9.,]*"
           autoComplete="off"
           autoCorrect="off"
           spellCheck="false"

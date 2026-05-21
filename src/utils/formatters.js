@@ -33,24 +33,64 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
 
 export function formatBolivares(value) {
   // v0.4.1: si es número (resultado de cálculo), muestra hasta 2 decimales
-  //   $1 × 523,68 → "523,68 Bs" (no "524 Bs" redondeado)
-  //   $100 × 523,68 → "52.368 Bs" (sin decimales porque es entero)
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return ''
     return bolivaresAmountFormatter.format(value)
   }
-  // Si es string (input del usuario), strip de no-dígitos → entero
-  const digits = String(value ?? '').replace(/\D/g, '')
-  if (!digits) return ''
-  const num = parseInt(digits, 10)
-  if (!Number.isFinite(num)) return ''
-  return bolivaresIntegerFormatter.format(num)
+
+  // v0.4.2: si es string (input del usuario), permite decimales con coma.
+  //   "12058,55" → "12.058,55"
+  //   "12058"    → "12.058"
+  //   ",5"       → "0,5"
+  //   "12058,"   → "12.058," (durante tipeo)
+  const str = String(value ?? '')
+  if (!str) return ''
+
+  const commaIdx = str.indexOf(',')
+  if (commaIdx === -1) {
+    // Entero puro
+    const digits = str.replace(/[^\d]/g, '')
+    if (!digits) return ''
+    const num = parseInt(digits, 10)
+    return Number.isFinite(num) ? bolivaresIntegerFormatter.format(num) : ''
+  }
+
+  // Con decimal
+  const intStr = str.slice(0, commaIdx).replace(/[^\d]/g, '')
+  const decStr = str.slice(commaIdx + 1).replace(/[^\d]/g, '').slice(0, 2)
+
+  let intFormatted
+  if (!intStr) {
+    intFormatted = '0' // usuario empezó tipeando ","
+  } else {
+    const num = parseInt(intStr, 10)
+    intFormatted = Number.isFinite(num) ? bolivaresIntegerFormatter.format(num) : '0'
+  }
+
+  return intFormatted + ',' + decStr
 }
 
 export function parseBolivares(str) {
-  const digits = String(str ?? '').replace(/\D/g, '')
-  if (!digits) return 0
-  const num = parseInt(digits, 10)
+  if (!str) return 0
+  // v0.4.2: parsea "12.058,55" → 12058.55 (float)
+  const cleaned = String(str).replace(/[^\d.,]/g, '')
+  if (!cleaned) return 0
+
+  // El separador decimal es el ÚLTIMO , o . que aparece.
+  const lastComma = cleaned.lastIndexOf(',')
+  const lastDot = cleaned.lastIndexOf('.')
+  const lastSep = Math.max(lastComma, lastDot)
+
+  let normalized
+  if (lastSep === -1) {
+    normalized = cleaned.replace(/[^\d]/g, '')
+  } else {
+    const intPart = cleaned.slice(0, lastSep).replace(/[^\d]/g, '')
+    const decPart = cleaned.slice(lastSep + 1).replace(/[^\d]/g, '')
+    normalized = (intPart || '0') + '.' + (decPart || '0')
+  }
+
+  const num = parseFloat(normalized)
   return Number.isFinite(num) ? num : 0
 }
 

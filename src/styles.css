@@ -410,6 +410,62 @@ input:focus-visible {
 }
 
 /* ========================================
+   COMPONENTE: Custom Direction sub-toggle (v0.4.2)
+   Aparece SOLO en modo custom. Permite alternar Bs↔USD del monto.
+   ======================================== */
+.custom-direction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-direction__label {
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-soft);
+}
+
+.custom-direction__group {
+  display: flex;
+  gap: 0;
+  background: #2C3E50;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.custom-direction__btn {
+  flex: 1;
+  padding: 12px 8px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-soft);
+  background: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.custom-direction__btn--active {
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.custom-direction__btn:hover:not(:disabled):not(.custom-direction__btn--active) {
+  color: var(--color-text);
+}
+
+.custom-direction__btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.custom-direction__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========================================
    COMPONENTE: Custom Rate input (v0.4.1)
    Modo "Otra tasa" — usuario ingresa el tasa manualmente.
    ======================================== */

@@ -88,12 +88,16 @@ export default function ResultDisplay({ result, loading, error, mode }) {
     isFuture,
     isFallbackFromFuture,
     publishedRateFuture,
-    isCustomRate
+    isCustomRate,
+    customDirection
   } = result
 
   const relativeTime = formatRelativeTime(fetchedAt)
   const isBsToUsd = mode === 'bs-to-usd'
   const isCustomMode = mode === 'custom'
+  // v0.4.2: custom mode bidireccional
+  const customIsBsToUsd = customDirection === 'bs'
+  const resultIsInUsd = isCustomMode ? customIsBsToUsd : isBsToUsd
   const validity = getRateValidity(fecha)
 
   return (
@@ -111,17 +115,17 @@ export default function ResultDisplay({ result, loading, error, mode }) {
       )}
 
       <p className="result-display__label">
-        {isCustomMode ? 'Son' : isBsToUsd ? 'Son' : 'Necesitas'}
+        {resultIsInUsd ? 'Son' : 'Necesitas'}
       </p>
 
       <p className="result-display__amount">
-        {isCustomMode || isBsToUsd
+        {resultIsInUsd
           ? formatUSD(converted)
           : `${formatBolivares(converted)} Bs`}
       </p>
 
       <p className="result-display__bolivares">
-        {isCustomMode || isBsToUsd ? (
+        {resultIsInUsd ? (
           <>por <strong>{formatBolivares(amount)} Bs</strong></>
         ) : (
           <>por <strong>{formatUSD(amount)}</strong></>
@@ -133,7 +137,7 @@ export default function ResultDisplay({ result, loading, error, mode }) {
       <div className="result-display__meta">
         {isCustomMode ? (
           <p className="result-display__rate">
-            Tu tasa: <strong>{formatRate(tasa)}</strong> Bs por dólar
+            Con tu tasa: <strong>{formatRate(tasa)}</strong> Bs/$
             {' '}
             <span className="result-display__custom-tag">(personalizada)</span>
           </p>
