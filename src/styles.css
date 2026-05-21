@@ -19,8 +19,8 @@
   /* ---------- Texto ---------- */
   --color-text: #F5F5F5;          /* Texto principal — off-white (descansa más que blanco puro)
                                      Contraste vs --color-bg: 16.3:1 → AAA ✅ */
-  --color-text-soft: #B8B8B8;     /* Texto secundario
-                                     Contraste vs --color-bg: 8.2:1 → AAA ✅ */
+  --color-text-soft: #A1A1A6;     /* Texto secundario (v0.4.0 — validado con usuario)
+                                     Contraste vs --color-bg: ~7.5:1 → AAA ✅ */
   --color-text-dim: #888888;      /* Texto atenuado (helpers, hints)
                                      Contraste vs --color-bg: 4.8:1 → AA Large ✅ */
   --color-text-on-primary: #0A2818; /* Texto OSCURO sobre botón verde (más legible que blanco)
@@ -160,8 +160,12 @@ input:focus-visible {
 
 /* ---------- Header ---------- */
 .app-header {
-  text-align: center;
-  padding-top: var(--space-md);
+  /* v0.4.0: alineación izquierda (más limpio, mejor jerarquía) */
+  text-align: left;
+  /* Safe area: respeta notch / Dynamic Island en iPhone */
+  padding-top: max(var(--space-md), env(safe-area-inset-top));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .app-title {
@@ -208,7 +212,84 @@ input:focus-visible {
 }
 
 /* ========================================
-   COMPONENTE: CalculatorInput
+   COMPONENTE: ModeSelector (v0.4.0)
+   Segmented control "¿QUÉ TIENES?" — ambas opciones visibles.
+   Reemplaza el toggle "Cambiar a..." de v0.2.1+.
+   ======================================== */
+.mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-selector__label {
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-soft);
+}
+
+.mode-selector__group {
+  display: flex;
+  gap: 0;
+  background: #2C3E50;
+  border-radius: 12px;
+  padding: 4px;
+  min-height: 80px;
+}
+
+.mode-selector__option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  font-family: inherit;
+  color: var(--color-text-soft);
+  background: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.mode-selector__option--active {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-weight: var(--font-weight-bold);
+}
+
+.mode-selector__option:hover:not(:disabled):not(.mode-selector__option--active) {
+  color: var(--color-text);
+}
+
+.mode-selector__option:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.mode-selector__option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mode-selector__option-main {
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.1;
+}
+
+.mode-selector__option-symbol {
+  font-size: 16px;
+  font-weight: var(--font-weight-normal);
+  opacity: 0.85;
+}
+
+/* ========================================
+   COMPONENTE: CalculatorInput (v0.4.0)
+   Sin botón CALCULAR — auto-calc con debounce.
+   Sin toggle interno (movido a ModeSelector).
+   + Quick chips de montos comunes.
    ======================================== */
 .calculator-input {
   display: flex;
@@ -216,92 +297,48 @@ input:focus-visible {
   gap: var(--space-md);
 }
 
-.calculator-input__label {
-  font-size: var(--font-size-label);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-soft);
-  text-align: center;
-}
-
-/* Botón pill centrado para cambiar dirección de conversión.
-   Icono + texto: tu mamá no tiene que adivinar qué hace el ⇄ solo. */
-.calculator-input__toggle {
+/* v0.4.0: layout flex (no más position:absolute para clear/currency).
+   Más robusto en viewports estrechos — el número no se corta. */
+.calculator-input__field-wrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin: 0 auto;
-  padding: 14px 22px;
-  min-height: 56px;
-  max-width: 320px;
-  width: 100%;
-  font-size: var(--font-size-label);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
-  background: var(--color-bg-soft);
+  gap: 10px;
+  background: var(--color-bg-input);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+  padding: 0 16px;
+  min-height: var(--touch-target-lg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
-.calculator-input__toggle:hover:not(:disabled) {
+.calculator-input__field-wrapper:hover {
+  border-color: var(--color-text-dim);
+}
+
+.calculator-input__field-wrapper:focus-within {
   border-color: var(--color-primary);
+  box-shadow: var(--glow-focus);
   background: var(--color-bg-elevated);
 }
 
-.calculator-input__toggle:hover:not(:disabled) .calculator-input__toggle-icon {
-  transform: rotate(180deg);
-}
-
-.calculator-input__toggle:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.calculator-input__toggle:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.calculator-input__toggle-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  font-size: 24px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-primary-bright);
-  transition: transform 0.3s ease;
-  line-height: 1;
-}
-
-.calculator-input__toggle-text {
-  flex: 0 1 auto;
-  text-align: left;
-}
-
-.calculator-input__field-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
 .calculator-input__field {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-family-numbers);
   font-size: var(--font-size-input);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
-  background: var(--color-bg-input);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-md) 130px var(--space-md) var(--space-md);
-  min-height: var(--touch-target-lg);
+  background: transparent;
+  border: none;
+  padding: 14px 0;
   text-align: right;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
   -webkit-appearance: none;
   appearance: none;
+}
+
+.calculator-input__field:focus {
+  outline: none;
 }
 
 .calculator-input__field::placeholder {
@@ -309,44 +346,36 @@ input:focus-visible {
   font-weight: var(--font-weight-normal);
 }
 
-.calculator-input__field:hover {
-  border-color: var(--color-text-dim);
-}
-
-.calculator-input__field:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--glow-focus);
-  background: var(--color-bg-elevated);
+.calculator-input__field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .calculator-input__currency {
-  position: absolute;
-  right: var(--space-md);
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
   font-size: var(--font-size-label);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-soft);
-  pointer-events: none;
   user-select: none;
+  pointer-events: none;
 }
 
+/* v0.4.0: botón "Borrar" con texto explícito (no ✕).
+   Adultos mayores entienden mejor el texto que el ícono abstracto. */
 .calculator-input__clear {
-  position: absolute;
-  right: 64px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  display: flex;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 8px 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-family: inherit;
+  font-size: 15px;
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-soft);
+  color: var(--color-text);
   background: var(--color-border-soft);
-  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
@@ -357,39 +386,65 @@ input:focus-visible {
 }
 
 .calculator-input__clear:active {
-  transform: translateY(-50%) scale(0.92);
+  transform: scale(0.94);
 }
 
-.calculator-input__button {
-  width: 100%;
-  min-height: var(--touch-target-lg);
-  font-size: var(--font-size-button);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 1px;
-  color: var(--color-text-on-primary);
-  background: var(--color-primary);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  box-shadow: var(--glow-primary), var(--shadow-md);
-  transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.2s ease;
-}
-
-.calculator-input__button:hover:not(:disabled) {
-  background: var(--color-primary-bright);
-  box-shadow: 0 0 32px rgba(46, 204, 113, 0.5), var(--shadow-lg);
-}
-
-.calculator-input__button:active:not(:disabled) {
-  transform: translateY(2px);
-  background: var(--color-primary-dark);
-  box-shadow: var(--shadow-sm);
-}
-
-.calculator-input__button:disabled {
-  background: var(--color-bg-elevated);
-  color: var(--color-text-dim);
+.calculator-input__clear:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
-  box-shadow: none;
+}
+
+/* ========================================
+   COMPONENTE: Quick Chips (v0.4.0)
+   Atajos de montos comunes — validados con usuario.
+   Scroll horizontal en una sola fila (más limpio que wrap).
+   ======================================== */
+.quick-chips-container {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Scrollbar oculta (mantenemos funcional, sin ruido visual) */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Padding lateral para que el último chip no quede pegado al borde */
+  padding: 2px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quick-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-chip {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 10px 20px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  background: #2C3E50;
+  border-radius: 22px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.quick-chip:hover:not(:disabled) {
+  background: #34495E;
+}
+
+.quick-chip:active:not(:disabled) {
+  transform: scale(0.95);
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.quick-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ========================================
@@ -431,7 +486,7 @@ input:focus-visible {
   line-height: 1.05;
   letter-spacing: -1.5px;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 24px rgba(46, 204, 113, 0.25);
+  /* v0.4.0: text-shadow eliminado — números sólidos para mejor legibilidad */
   margin: var(--space-xs) 0;
   word-break: break-word;
 }
@@ -544,6 +599,75 @@ input:focus-visible {
   font-weight: var(--font-weight-medium);
 }
 
+/* ---------- Estado: NO_VALID_RATE (v0.4.0) ----------
+   BCV publicó tasa futura y no hay caché. Mostramos info de mañana
+   pero NO permitimos calcular con esa tasa. */
+.result-display--no-valid {
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-accent);
+  align-items: center;
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.result-display__no-valid-icon {
+  font-size: 40px;
+  margin-bottom: var(--space-xs);
+}
+
+.result-display__no-valid-title {
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  margin-bottom: var(--space-xs);
+}
+
+.result-display__no-valid-text {
+  font-size: var(--font-size-help);
+  color: var(--color-text-soft);
+  line-height: 1.45;
+  margin-bottom: var(--space-md);
+}
+
+.result-display__no-valid-future {
+  width: 100%;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin: 0 0 var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-display__no-valid-future-label {
+  font-size: var(--font-size-help);
+  color: var(--color-text-soft);
+  font-weight: var(--font-weight-medium);
+}
+
+.result-display__no-valid-future-rate {
+  font-family: var(--font-family-numbers);
+  font-size: 32px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-text);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-display__no-valid-future-rate span {
+  font-size: 18px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-soft);
+  margin-left: 4px;
+}
+
+.result-display__no-valid-cta {
+  font-size: var(--font-size-help);
+  color: var(--color-text-dim);
+  font-style: italic;
+}
+
 /* ---------- Estado: error ---------- */
 .result-display--error {
   background: rgba(255, 107, 107, 0.08);
@@ -573,6 +697,33 @@ input:focus-visible {
 
   .app {
     padding: var(--space-lg);
+  }
+}
+
+/* ---------- Responsive — viewports estrechos ---------- */
+@media (max-width: 380px) {
+  :root {
+    --font-size-input: 30px;
+    --font-size-result: 44px;
+  }
+
+  .calculator-input__field-wrapper {
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .calculator-input__clear {
+    width: 36px;
+    height: 36px;
+  }
+
+  .mode-selector__option-main {
+    font-size: 18px;
+  }
+
+  .quick-chip {
+    padding: 10px 16px;
+    font-size: 15px;
   }
 }
 

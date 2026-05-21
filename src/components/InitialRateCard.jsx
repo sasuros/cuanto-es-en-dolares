@@ -28,7 +28,41 @@ export default function InitialRateCard({ rate, loading, error }) {
     )
   }
 
+  // v0.4.0: estado especial NO_VALID_RATE — BCV publicó tasa futura y no
+  // tenemos caché válido. Mostramos la tasa de mañana como INFO (no para calcular).
+  if (error && typeof error === 'object' && error.type === 'no_valid_rate') {
+    return (
+      <div
+        className="result-display result-display--no-valid"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="result-display__no-valid-icon" aria-hidden="true">⏰</p>
+        <p className="result-display__no-valid-title">Tasa no disponible aún</p>
+        <p className="result-display__no-valid-text">
+          El BCV publica la tasa del día después de las 4 PM.
+        </p>
+        {error.futureRate && (
+          <div className="result-display__no-valid-future">
+            <p className="result-display__no-valid-future-label">
+              ℹ️ Para mañana será:
+            </p>
+            <p className="result-display__no-valid-future-rate">
+              {formatRate(error.futureRate.tasa)} <span>Bs/$</span>
+            </p>
+          </div>
+        )}
+        <p className="result-display__no-valid-cta">
+          Vuelve más tarde para calcular con la tasa vigente.
+        </p>
+      </div>
+    )
+  }
+
   if (error || !rate) {
+    const message = typeof error === 'string'
+      ? error
+      : (error?.message || 'No pudimos consultar la tasa. Escribe un monto y reintenta.')
     return (
       <div
         className="result-display result-display--error"
@@ -36,9 +70,7 @@ export default function InitialRateCard({ rate, loading, error }) {
         aria-live="polite"
       >
         <p className="result-display__error-icon" aria-hidden="true">⚠️</p>
-        <p className="result-display__error-text">
-          {error || 'No pudimos consultar la tasa. Escribe un monto y reintenta.'}
-        </p>
+        <p className="result-display__error-text">{message}</p>
       </div>
     )
   }

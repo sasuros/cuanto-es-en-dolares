@@ -16,9 +16,12 @@
  *   - Si la red falla y hay caché aunque sea vieja, la devuelve marcada como stale.
  */
 
+import { getRateValidity } from '../utils/formatters'
+
 const API_URL = import.meta.env.VITE_BCV_API_URL || '/api/bcv'
 const IS_DEV = import.meta.env.DEV
 const CACHE_KEY = 'bcv-rate-cache-v1'
+const LAST_VALID_KEY = 'bcv-rate-last-valid-v1'  // v0.4.0: caché de la última tasa con validity ≠ 'future'
 const CACHE_TTL_MS = IS_DEV
   ? 10 * 60 * 1000        // 10 min en desarrollo (testing rápido)
   : 6 * 60 * 60 * 1000    // 6 horas en producción
@@ -117,12 +120,30 @@ function readCache() {
 
 function writeCache(data) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data,
-      savedAt: Date.now()
-    }))
+    const entry = JSON.stringify({ data, savedAt: Date.now() })
+    localStorage.setItem(CACHE_KEY, entry)
+
+    // v0.4.0: si la tasa es de HOY (o pasada — fin de semana, etc.), también
+    // la guardamos como "última válida". Las tasas FUTURAS NO se copian aquí,
+    // así que este slot siempre contiene la última tasa segura para cálculos.
+    const validity = getRateValidity(data.fecha)
+    if (validity !== 'future') {
+      localStorage.setItem(LAST_VALID_KEY, entry)
+    }
   } catch {
     // localStorage lleno o deshabilitado: seguimos sin caché
+  }
+}
+
+function readLastValidRate() {
+  try {
+    const raw = localStorage.getItem(LAST_VALID_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.data || typeof parsed.savedAt !== 'number') return null
+    return parsed
+  } catch {
+    return null
   }
 }
 
@@ -133,9 +154,58 @@ function isFresh(cached) {
 export function clearRateCache() {
   try {
     localStorage.removeItem(CACHE_KEY)
+    localStorage.removeItem(LAST_VALID_KEY)
   } catch {
     // ignorar
   }
+}
+
+/**
+ * v0.4.0: variante de fetchBCVRate que GARANTIZA devolver una tasa con
+ * validity ∈ {today, past, unknown} — nunca "future".
+ *
+ * Política: la app NO debe calcular conversiones con la tasa "de mañana"
+ * que el BCV publica desde ~4 PM VET — los comercios siguen cobrando con
+ * la tasa vigente HOY hasta medianoche.
+ *
+ * Lógica:
+ *   1. Pide la tasa más reciente (cache o API).
+ *   2. Si NO es futura → devuelve directamente.
+ *   3. Si ES futura → busca en LAST_VALID_KEY la última tasa no-futura.
+ *      - Si existe → devuelve esa, marca `isFallbackFromFuture: true` y
+ *        adjunta `publishedRateFuture` (info de la tasa de mañana).
+ *      - Si no existe → throw ApiError('NO_VALID_RATE') con `publishedRateFuture`
+ *        adjunto para que la UI pueda mostrarla como referencia.
+ *
+ * Esta es la función que debe usar TODA la app para calcular o mostrar
+ * "la tasa actual". El fetchBCVRate "crudo" queda como helper interno.
+ */
+export async function fetchBCVRateForCalculation(opts = {}) {
+  const latest = await fetchBCVRate(opts)
+  const validity = getRateValidity(latest.fecha)
+
+  if (validity !== 'future') {
+    return latest
+  }
+
+  const lastValid = readLastValidRate()
+  const publishedFuture = { tasa: latest.tasa, fecha: latest.fecha }
+
+  if (lastValid) {
+    return {
+      ...lastValid.data,
+      fromCache: true,
+      isFallbackFromFuture: true,
+      publishedRateFuture: publishedFuture
+    }
+  }
+
+  const err = new ApiError(
+    'NO_VALID_RATE',
+    'Aún no tenemos la tasa vigente de hoy'
+  )
+  err.publishedRateFuture = publishedFuture
+  throw err
 }
 
 /**
@@ -170,6 +240,8 @@ export function getFriendlyErrorMessage(err) {
         return 'Recibimos una respuesta extraña. Inténtalo de nuevo.'
       case 'CONFIG':
         return 'La aplicación no está bien configurada.'
+      case 'NO_VALID_RATE':
+        return 'Aún no tenemos la tasa de hoy. El BCV la publica después de las 4 PM. Intenta más tarde.'
       default:
         return 'Algo salió mal. Inténtalo de nuevo.'
     }
