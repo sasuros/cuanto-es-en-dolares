@@ -57,24 +57,42 @@ function writeSavedCustomDirection(dir) {
   try { localStorage.setItem(CUSTOM_DIRECTION_KEY, dir) } catch {}
 }
 
-// v0.4.2: input Bs ahora acepta decimales con coma o punto.
-// Normaliza a coma como separador decimal (estilo es-VE).
+// v0.4.2.1: input Bs acepta decimales en formato es-VE (coma decimal,
+// punto miles). El input es CONTROLLED con valor formateado — el
+// formatter inserta puntos de miles, así que al recibir el siguiente
+// keystroke, debemos distinguir miles de decimal:
+//   - Si hay coma → la coma es el decimal (puntos = miles, los quitamos)
+//   - Si no hay coma y un punto está seguido de 3+ dígitos → miles
+//   - Si no hay coma y un punto está seguido de 0-2 dígitos → decimal en progreso
 function sanitizeBsInputDecimal(value) {
   let cleaned = value.replace(/[^\d.,]/g, '')
   if (!cleaned) return ''
 
-  const lastComma = cleaned.lastIndexOf(',')
-  const lastDot = cleaned.lastIndexOf('.')
-  const lastSep = Math.max(lastComma, lastDot)
+  const commaIdx = cleaned.indexOf(',')
 
-  if (lastSep === -1) {
-    return cleaned.replace(/[^\d]/g, '')
+  if (commaIdx !== -1) {
+    // Ya hay coma → ella es la decimal. Cualquier punto previo es miles.
+    const intPart = cleaned.slice(0, commaIdx).replace(/\./g, '')
+    const decPart = cleaned.slice(commaIdx + 1).replace(/[^\d]/g, '').slice(0, 2)
+    return intPart + ',' + decPart
   }
 
-  const intPart = cleaned.slice(0, lastSep).replace(/[^\d]/g, '')
-  const decPart = cleaned.slice(lastSep + 1).replace(/[^\d]/g, '').slice(0, 2)
+  // No hay coma. ¿Hay puntos?
+  const lastDotIdx = cleaned.lastIndexOf('.')
+  if (lastDotIdx === -1) {
+    return cleaned // sólo dígitos, fácil
+  }
 
-  return intPart + ',' + decPart
+  const afterLastDot = cleaned.slice(lastDotIdx + 1)
+  if (afterLastDot.length <= 2 && !afterLastDot.includes('.')) {
+    // "1." o "1.5" o "12.58" — el usuario quiere decimal con punto.
+    // Convertimos el último punto en coma; el resto son miles.
+    const intPart = cleaned.slice(0, lastDotIdx).replace(/\./g, '')
+    return intPart + ',' + afterLastDot
+  }
+
+  // "1.205", "12.058", "1.500.000" — todos los puntos son miles.
+  return cleaned.replace(/\./g, '')
 }
 
 function sanitizeUsdInput(value) {
