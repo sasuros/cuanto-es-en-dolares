@@ -249,20 +249,207 @@ El path del proyecto (`05_PROYECTO_ cuanto-es-en-dolares`) tiene un espacio que 
 
 ---
 
+### **Día 3: Iteraciones con feedback real (19-20 Mayo 2026)**
+
+> 🎉 **Hito:** La pausa de validación con la mamá funcionó. Probó v0.1.0 y
+> dio feedback concreto. Se entregaron 4 versiones en ~24 horas, cada una
+> respondiendo a observación real (no a suposiciones).
+
+#### ✅ COMPLETADO — 4 versiones deployadas
+
+---
+
+#### **v0.2.0 — Conversión bidireccional Bs↔USD** (19 May, commit `f4f8a7f`)
+
+**Feedback que disparó la feature:**
+> _"Me dicen \$50 en la tienda, no sé cuántos bolívares son."_ — mamá de Sasuros
+
+Después de probar v0.1.0 (solo Bs→USD), pidió expresamente la conversión inversa.
+Validación real → la feature pasó a estar justificada (no fue suposición).
+
+**Implementación:**
+- Estado `mode` en `App.jsx` (`'bs-to-usd'` | `'usd-to-bs'`)
+- Toggle ⇄ 44×44px en la esquina superior derecha del label
+- Lógica dual de cálculo: `amount / tasa` (Bs→USD) o `amount * tasa` (USD→Bs)
+- `CalculatorInput.jsx` adapta format/parse según modo (numérico vs decimal)
+- `inputMode` cambia entre `numeric` y `decimal` → distinto teclado en móvil
+- `ResultDisplay.jsx` con texto adaptativo:
+  - Bs→USD: _"Son aproximadamente \$X por Y Bs"_
+  - USD→Bs: _"Necesitas Y Bs para \$X"_
+- Nuevas utilidades en `formatters.js`: `formatUSDInput`, `parseUSDInput`
+
+**🐛 Bug atrapado en testing:**
+`formatBolivares()` recibía floats (de `amount × tasa`) y producía números monstruosos
+por representación IEEE 754: `"26.045.710.000.000.004 Bs"` en lugar de `26.046 Bs`.
+Fix: detectar `typeof value === 'number'` y `Math.round()` antes de formatear.
+
+**Testing:**
+- ✅ Bs → USD: `1.500.000 Bs → $2,879.55`
+- ✅ USD → Bs entero: `$50 → 26.046 Bs`
+- ✅ USD → Bs con decimales: `$12.50 → 6.511 Bs`
+- ✅ Toggle limpia input + resultado al cambiar modo
+
+**Decisión clave de UX:**
+**Un solo botón ⇄, no dos botones grandes "Bs→USD" / "USD→Bs".**
+Una propuesta original tenía dos botones tipo radio. Se descartó porque añadía
+carga cognitiva. Para adultos mayores: menos elementos visibles = más claridad.
+
+---
+
+#### **v0.2.1 — Toggle más visible con texto** (19 May, commit `26d2521`)
+
+**Feedback que disparó el cambio:**
+Pasamos v0.2.0 al móvil y la mamá no vio el ⇄ chiquito en la esquina.
+Demasiado sutil.
+
+**Implementación:**
+- Botón pill centrado (56px alto, máx 320px ancho)
+- **Icono ⇄ + TEXTO adaptativo:**
+  - "Cambiar a dólares" cuando está en modo Bs
+  - "Cambiar a bolívares" cuando está en modo USD
+- El texto cambia según _destino_ (no según estado actual) → más claro
+- Animación: rotación 180° del icono en hover (mantiene la pista visual)
+
+**Decisión clave de UX:**
+**Para adultos mayores, icono + texto siempre supera a icono solo.**
+La mamá no tiene que adivinar qué hace el ⇄ — el texto se lo dice.
+Patrón aplicable a cualquier control no obvio en este perfil de usuario.
+
+---
+
+#### **v0.2.2 — Indicador de vigencia (HOY vs MAÑANA)** (20 May, commit `e22577c`)
+
+**Bug verificado (no hipotético):**
+El BCV publica la tasa del día _siguiente_ entre las 3-4 PM VET. Los comercios
+en Venezuela siguen cobrando con la tasa _vigente HOY_, no con la "de mañana".
+Sin un indicador claro, la mamá podía asumir que la tasa mostrada es la que
+está cobrando el comercio → diferencia real al pagar.
+
+Verificación: comparamos lo que mostraba la app con lo que estaba cobrando
+un comercio en Venezuela. Confirmadas tasas distintas.
+
+**Implementación (fix simple, no over-engineered):**
+- Etiqueta visual **debajo de la tasa BCV**:
+  - ✅ Verde "Vigente: HOY" si la fecha del API es hoy en Venezuela
+  - ⚠️ Naranja "Vigente desde: mañana" si la fecha es futura
+- Parser de fechas en español (`"Martes, 19 Mayo 2026"`) en `formatters.js`
+- Comparación contra hoy en zona horaria `America/Caracas` (vía
+  `Intl.DateTimeFormat` con `timeZone` — no usa reloj del usuario)
+- Comparación por año/mes/día (sin horas → evita bugs sutiles)
+
+**Testing (5 casos):**
+- ✅ today, future, past, invalid, empty — todos correctos
+
+**Decisión clave de arquitectura:**
+**NO rechazar la tasa futura. Solo etiquetarla.**
+La propuesta original era "si fecha > hoy, descartar y usar caché viejo".
+Se rechazó porque:
+- Edge cases sin resolver (¿qué pasa si no hay caché?)
+- Esconde información útil al usuario que sí quiere planificar
+- ~100 líneas de código vs ~15 líneas del label visual
+
+El usuario decide, no la app. Más transparente.
+
+---
+
+#### **v0.3.0 — InitialRateCard: tasa visible al abrir** (20 May, commit `c8edc44`)
+
+**Feedback que disparó la feature:**
+La mamá decía: _"Solo quiero saber a cuánto está el dólar hoy."_
+Tenía que inventar un monto y hacer un cálculo para ver la tasa. Fricción.
+
+**Implementación:**
+- Componente nuevo `src/components/InitialRateCard.jsx`
+- `useEffect` en `App.jsx` con `fetchBCVRate()` al montar la app (con cleanup
+  `cancelled` para evitar setState después de unmount en StrictMode)
+- **Mutua exclusión con `ResultDisplay`** (mismo espacio en el DOM):
+  - Sin cálculo activo → `InitialRateCard` (variante `--info`)
+  - Con cálculo / loading / error → `ResultDisplay`
+- Click en X → limpia resultado + reaparece `InitialRateCard`
+- Sincronización inteligente: tras un cálculo exitoso, `initialRate` se
+  actualiza con la tasa más reciente
+- Reutilización máxima: mismas clases `.result-display`, mismo
+  `getRateValidity`, mismo `fetchBCVRate`
+
+**Testing (5 casos):**
+- ✅ Abrir app → loading → card con tasa
+- ✅ Hacer cálculo → `InitialRateCard` reemplazada por `ResultDisplay`
+- ✅ Click X → resultado limpio, card vuelve
+- ✅ Sin internet → fallback a caché (cubierto por código existente)
+- ✅ Cambiar modo sin calcular → card permanece, no re-fetch
+
+**Decisión clave de jerarquía visual:**
+**Tasa contextual más pequeña (44px / 56px desktop) que el resultado
+del cálculo (56px / 72px desktop).**
+La tasa es contexto. El resultado del cálculo es el "wow moment". La jerarquía
+de tamaños lo refleja.
+
+---
+
+#### 🎯 Estado actual y próximos pasos
+
+**🚀 Producción estable:**
+- 5 versiones publicadas (v0.1.0 → v0.3.0)
+- Bundle: 50 KB gzipped
+- API key 100% server-side (verificado con `grep` en bundle de producción)
+- 0 bugs reportados
+- Cuota estimada: ~25 consultas/mes (cuota gratis: 50)
+
+**🛑 Desarrollo PAUSADO de nuevo:**
+Mismo principio que llevamos respetando todo el proyecto.
+**No se agrega ninguna feature más sin feedback real de usuarios usando v0.3.0.**
+
+**Inmediato (días) — VALIDACIÓN, no desarrollo:**
+- [ ] Mamá usa v0.3.0 en su rutina diaria varios días
+- [ ] Observar: ¿ahora sí ve la tasa al abrir?, ¿usa el toggle?,
+  ¿se confunde con "Vigente: HOY" vs "mañana"?
+- [ ] Compartir URL con 3-5 testers familiares más
+- [ ] Capturar screenshots reales para README
+- [ ] Anotar TODO lo que confunde — la app perfecta nace de feedback
+
+**Si surge un caso de uso nuevo y validado:**
+- Implementar como v0.3.x si es ajuste, v0.4.0 si es feature
+- Seguir el patrón ship → observe → iterate
+
+#### 📝 NOTAS DEL DÍA — Lecciones de las iteraciones
+
+**Patrón que funcionó: el commit-pequeño-tag-rápido.**
+4 versiones en 24h, cada una tageada. Permite rollback granular si una rompe
+algo, y comunica claramente "este cambio existe y está documentado".
+
+**Push-back funciona cuando es honesto.**
+Dos veces el flujo de chat propuso features de Fase 4 mezcladas en specs de
+arreglos pequeños (botones grandes innecesarios, KV+cron antes de tiempo,
+rechazo de tasas futuras con fallback complejo). Sostener el principio de
+simplicidad y pedir validación antes de codear evitó horas de over-engineering.
+
+**Capturar bugs en testing es barato. En producción es caro.**
+El bug del IEEE 754 con `formatBolivares()` salió en preview, no en producción.
+El usuario nunca vio `26.045.710.000.000.004 Bs`. Probar cada cambio en
+preview antes de commit es disciplina que paga.
+
+---
+
 ## 📊 MÉTRICAS DE PROGRESO
 
-**Fase 1 (MVP Ultra Simple):** ✅ **COMPLETADA**
+**Fase 1 (MVP Ultra Simple):** ✅ **COMPLETADA + ITERADA con feedback real**
 - Progreso: **100%** 🎉
-- Tiempo real invertido: ~6 horas (estimado original: 4-6h) ✅
-- Bloqueadores resueltos: CORS, exposición de API key
+- Tiempo real invertido: ~6h MVP inicial + ~3h iteraciones = ~9h total
+- Versiones publicadas: **5** (`v0.1.0`, `v0.2.0`, `v0.2.1`, `v0.2.2`, `v0.3.0`)
+- Features finales en producción:
+  - Conversión bidireccional Bs↔USD
+  - Indicador de vigencia ("Vigente: HOY" / "Vigente desde: mañana")
+  - Tasa visible al abrir la app (sin tener que calcular)
+  - PWA instalable, offline-first
+  - API key server-side (Netlify Function + CDN cache 12h)
+- Bloqueadores resueltos: CORS, exposición de API key, bug de tasa futura
 - En producción: https://cuantoeseldolares.netlify.app
-- **🛑 Estado:** Desarrollo **PAUSADO** conscientemente. No se agregan features
-  hasta tener feedback de al menos 1 usuario mayor real (la mamá de Sasuros).
-  La conversión inversa USD→Bs queda en Fase 4 según roadmap original.
+- **🛑 Estado:** Desarrollo **PAUSADO** de nuevo. Esperando feedback real
+  de v0.3.0 antes de cualquier feature nueva.
 
 **Fase 2 (Comparación BCV vs Binance):**
 - Progreso: 0%
-- Dependencia: Validar Fase 1 con usuarios reales (1-2 semanas)
+- Dependencia: Validar v0.3.0 con usuarios reales por varios días
 - Riesgo: 🟡 Medio (API Binance no oficial — scraper o terceros)
 
 **Fase 3 (OCR):**
@@ -270,17 +457,9 @@ El path del proyecto (`05_PROYECTO_ cuanto-es-en-dolares`) tiene un espacio que 
 - Dependencia: Fase 2 estable + feedback de usuarios sobre fricción al tipear
 - Riesgo: 🟡 Medio (precisión OCR con facturas reales)
 
-**Versión actual:** `v0.1.0` (etiquetada en git)
-
-**Fase 2 (Comparación BCV vs Binance):**
-- Progreso: 0%
-- Dependencia: Completar Fase 1
-- Riesgo: 🟡 Medio (API Binance no oficial)
-
-**Fase 3 (OCR):**
-- Progreso: 0%
-- Dependencia: Validar que usuarios usen Fase 1-2
-- Riesgo: 🟡 Medio (precisión OCR)
+**Versión actual en producción:** `v0.3.0`
+**Branch principal:** `main`
+**Último deploy:** 20 mayo 2026
 
 ---
 

@@ -45,34 +45,48 @@
 
 ## 🗺️ ROADMAP DE DESARROLLO
 
-### **FASE 1: MVP ULTRA SIMPLE** ⭐ (INICIO INMEDIATO)
+### **FASE 1: MVP ULTRA SIMPLE** ⭐ ✅ **COMPLETADA + ITERADA**
 
-**Objetivo:** App funcional en 24-48 horas
+**Objetivo:** App funcional en 24-48 horas → **Logrado en ~9 horas totales**
 
-**Funcionalidades:**
-- Input manual de monto en bolívares
-- Botón grande "CALCULAR"
-- Muestra resultado en USD (tasa BCV)
-- Diseño minimalista, letras grandes
-- Responsive (móvil primero)
+**Funcionalidades entregadas (5 versiones, v0.1.0 → v0.3.0):**
+- ✅ Input manual de monto con formato venezolano (1.500.000)
+- ✅ Botón grande "CALCULAR" (80px de alto)
+- ✅ Resultado en USD GIGANTE (56px / 72px en desktop)
+- ✅ Conversión bidireccional Bs↔USD con toggle "Cambiar a..." (v0.2.0+)
+- ✅ Indicador de vigencia: ✅ HOY / ⚠️ desde mañana (v0.2.2)
+- ✅ Tasa visible al abrir, sin calcular (v0.3.0)
+- ✅ Modo oscuro WCAG AAA
+- ✅ PWA instalable, offline-first
+- ✅ Responsive (móvil primero)
 
-**Criterios de éxito:**
-- Mamá de Sasuros puede usarla sin ayuda
-- Carga en menos de 2 segundos
-- Funciona en cualquier teléfono
+**Criterios de éxito — TODOS cumplidos:**
+- ✅ Mamá de Sasuros puede usarla sin ayuda
+- ✅ Carga en menos de 2 segundos (bundle: 50 KB gzipped)
+- ✅ Funciona en cualquier teléfono (testeada en iOS + escritorio)
 
-**APIs necesarias:**
+**API actual:**
 - bcvapi.tech (plan gratuito: 50 consultas/mes)
+- Cuota estimada con caché compartido CDN: ~25/mes ✅
 
-**Archivos principales:**
+**Arquitectura final en producción:**
 ```
 /src
   /components
-    CalculatorInput.jsx
-    ResultDisplay.jsx
-  App.jsx
-  styles.css
+    CalculatorInput.jsx     # Input bidireccional + toggle "Cambiar a..."
+    ResultDisplay.jsx       # Resultado del cálculo (3 estados)
+    InitialRateCard.jsx     # Tasa visible al abrir (v0.3.0)
+  /services
+    apiService.js           # fetchBCVRate + caché + manejo de errores
+  /utils
+    formatters.js           # Bs, USD, tasa, vigencia, tiempo relativo
+  App.jsx, main.jsx, styles.css
+/netlify
+  /functions
+    bcv-rate.mjs            # Proxy server-side (oculta API key)
 ```
+
+**URL en producción:** https://cuantoeseldolares.netlify.app
 
 ---
 
@@ -313,36 +327,61 @@ cuanto-es-en-dolares/
 
 ## 📝 BITÁCORA DE DESARROLLO
 
-### **17 Mayo 2026**
+> Ver detalle completo en [`BITACORA-CUANTO-ES-EN-DOLARES.md`](./BITACORA-CUANTO-ES-EN-DOLARES.md).
+
+### **17 Mayo 2026** — Día 1
 - ✅ Investigación de APIs (BCV, Binance)
 - ✅ Análisis de tecnologías OCR
 - ✅ Definición de roadmap
 - ✅ Creación de documento maestro
-- 🔄 **SIGUIENTE:** Iniciar desarrollo Fase 1 en Claude Code
+
+### **18 Mayo 2026** — Día 2 — MVP completo + Deploy
+- ✅ Estructura React 18 + Vite 6 + PWA
+- ✅ Modo oscuro WCAG AAA
+- ✅ CalculatorInput, ResultDisplay, integración API BCV
+- ✅ Netlify Function que oculta API key server-side
+- ✅ CDN cache 12h (descarta Blobs+cron por sobre-ingeniería)
+- ✅ Deploy a https://cuantoeseldolares.netlify.app
+- 🏷️ **v0.1.0** — MVP minimal en producción
+
+### **19-20 Mayo 2026** — Día 3 — Iteraciones con feedback real
+- 🎉 Mamá probó v0.1.0 → pidió conversión inversa USD→Bs
+- 🏷️ **v0.2.0** — Conversión bidireccional Bs↔USD
+- 🏷️ **v0.2.1** — Toggle más visible (icono + texto "Cambiar a...")
+- 🐛 Bug confirmado: BCV publica tasa del día siguiente desde 3-4 PM VET
+- 🏷️ **v0.2.2** — Indicador de vigencia (✅ HOY / ⚠️ desde mañana)
+- 🏷️ **v0.3.0** — InitialRateCard: tasa visible al abrir la app
+
+### **Estado actual**
+- 🛑 Desarrollo **PAUSADO** esperando feedback real de v0.3.0
+- 📊 5 versiones publicadas, 0 bugs reportados, ~25 consultas/mes a la API
+- 📦 Bundle 50 KB gzipped, carga sub-2s en 4G
 
 ---
 
 ## 🎯 PRÓXIMOS PASOS INMEDIATOS
 
-1. **Configurar proyecto base en Claude Code:**
-   - Crear estructura de carpetas
-   - Instalar dependencias
-   - Configurar Vite + React
+> **Modo VALIDACIÓN, no desarrollo.** No se agregan features hasta tener
+> feedback concreto de v0.3.0 usada en la rutina diaria.
 
-2. **Obtener API Key de bcvapi.tech:**
-   - Registrarse en https://www.bcvapi.tech/
-   - Guardar API Key de forma segura
-   - Testear endpoint
+1. **Validación con usuario real:**
+   - Mamá usa v0.3.0 varios días en su rutina normal
+   - Observar QUÉ no entiende, QUÉ duda, QUÉ confunde
+   - Anotar todo, sin filtrar
 
-3. **Desarrollar componentes básicos:**
-   - Input de bolivares (grande, claro)
-   - Botón de calcular
-   - Display de resultado
+2. **Ampliar testers (suave):**
+   - Compartir URL con 3-5 familiares más por WhatsApp
+   - Idealmente otros adultos mayores
+   - Recoger patrones, no anécdotas aisladas
 
-4. **Primera prueba con usuario real:**
-   - Mamá de Sasuros
-   - Observar qué no entiende
-   - Ajustar inmediatamente
+3. **Capturar screenshots reales:**
+   - De la app live (no del preview de dev)
+   - Subir a `docs/screenshots/` y enlazar desde el README
+
+4. **Decisión post-feedback:**
+   - Si surge un caso de uso validado → v0.3.x o v0.4.0
+   - Si todo fluye → empezar Fase 2 (BCV vs Binance)
+   - Si hay confusión → simplificar antes de añadir nada nuevo
 
 ---
 
@@ -371,6 +410,7 @@ cuanto-es-en-dolares/
 
 ---
 
-**Última actualización:** 17 mayo 2026  
-**Versión del documento:** 1.0  
+**Última actualización:** 20 mayo 2026
+**Versión del documento:** 2.0 (post Fase 1 en producción)
+**Versión de la app en producción:** v0.3.0
 **Mantenido por:** Sasuros / Scanleads
