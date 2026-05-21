@@ -9,8 +9,18 @@
  *   parseBolivares("abc")        → 0
  */
 
-const bolivaresFormatter = new Intl.NumberFormat('es-VE', {
+// v0.4.1: separamos dos formatters de Bs.
+// - INTEGER: para input del usuario (sin decimales, sólo dígitos)
+// - AMOUNT: para resultados de cálculo (hasta 2 decimales si aplica)
+// Su mamá notó que $1 × 523,68 daba "524" (redondeado). Ahora muestra "523,68".
+const bolivaresIntegerFormatter = new Intl.NumberFormat('es-VE', {
   maximumFractionDigits: 0,
+  useGrouping: true
+})
+
+const bolivaresAmountFormatter = new Intl.NumberFormat('es-VE', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
   useGrouping: true
 })
 
@@ -22,18 +32,19 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
 })
 
 export function formatBolivares(value) {
-  // Si es número (ej. resultado de USD * tasa), redondear al entero más cercano.
-  // Los bolívares se manejan en enteros (no hay céntimos en uso práctico).
+  // v0.4.1: si es número (resultado de cálculo), muestra hasta 2 decimales
+  //   $1 × 523,68 → "523,68 Bs" (no "524 Bs" redondeado)
+  //   $100 × 523,68 → "52.368 Bs" (sin decimales porque es entero)
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return ''
-    return bolivaresFormatter.format(Math.round(value))
+    return bolivaresAmountFormatter.format(value)
   }
-  // Si es string (ej. lo que el usuario tipea), strip de no-dígitos.
+  // Si es string (input del usuario), strip de no-dígitos → entero
   const digits = String(value ?? '').replace(/\D/g, '')
   if (!digits) return ''
   const num = parseInt(digits, 10)
   if (!Number.isFinite(num)) return ''
-  return bolivaresFormatter.format(num)
+  return bolivaresIntegerFormatter.format(num)
 }
 
 export function parseBolivares(str) {

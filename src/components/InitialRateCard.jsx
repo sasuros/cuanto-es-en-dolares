@@ -5,12 +5,9 @@ import {
 } from '../utils/formatters'
 
 /**
- * Tarjeta que muestra la tasa BCV vigente al abrir la app, ANTES de
- * que el usuario haga cualquier cálculo. Se reemplaza por ResultDisplay
- * cuando hay un resultado o un cálculo en curso.
- *
- * Reutiliza las mismas clases de result-display para mantener
- * consistencia visual con el card de resultado.
+ * Tarjeta que muestra la tasa BCV vigente al abrir la app.
+ * v0.4.1: si la tasa es futura, se muestra con badge "Tasa de referencia"
+ * pero NO bloquea la app (calculadora sigue funcional 24/7).
  */
 export default function InitialRateCard({ rate, loading, error }) {
   if (loading) {
@@ -28,8 +25,8 @@ export default function InitialRateCard({ rate, loading, error }) {
     )
   }
 
-  // v0.4.0: estado especial NO_VALID_RATE — BCV publicó tasa futura y no
-  // tenemos caché válido. Mostramos la tasa de mañana como INFO (no para calcular).
+  // v0.4.1 corregido: si la tasa más reciente es futura y no hay caché válido,
+  // NO calculamos. Mostramos la tasa de mañana SOLO como referencia.
   if (error && typeof error === 'object' && error.type === 'no_valid_rate') {
     return (
       <div
@@ -77,6 +74,7 @@ export default function InitialRateCard({ rate, loading, error }) {
 
   const validity = getRateValidity(rate.fecha)
   const relativeTime = formatRelativeTime(rate.fetchedAt)
+  const isFuture = rate.isFuture === true
 
   return (
     <div
@@ -84,6 +82,13 @@ export default function InitialRateCard({ rate, loading, error }) {
       role="region"
       aria-label="Tasa actual del BCV"
     >
+      {isFuture && (
+        <div className="result-display__future-badge" role="status">
+          <span aria-hidden="true">⚠️</span>
+          <span>Tasa de referencia · vigente mañana</span>
+        </div>
+      )}
+
       <p className="result-display__label">Tasa BCV hoy</p>
 
       <p className="result-display__amount initial-rate-card__amount">

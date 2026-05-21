@@ -7,9 +7,15 @@ import {
 } from '../utils/formatters'
 
 /**
- * Resultado de la conversión bidireccional.
- * mode = 'bs-to-usd': muestra "$X por Y Bs"
- * mode = 'usd-to-bs': muestra "Y Bs para $X"
+ * Resultado de la conversión.
+ *
+ * Modos soportados:
+ *   - 'bs-to-usd' → muestra "Son \$X por Y Bs"
+ *   - 'usd-to-bs' → muestra "Son Y Bs por \$X"
+ *   - 'custom'    → muestra resultado + tasa custom usada (no BCV)
+ *
+ * v0.4.1: si result.isFuture (la tasa BCV usada es para mañana),
+ * mostramos un badge "Tasa de referencia" y permitimos calcular igual.
  */
 export default function ResultDisplay({ result, loading, error, mode }) {
   if (loading) {
@@ -27,7 +33,7 @@ export default function ResultDisplay({ result, loading, error, mode }) {
     )
   }
 
-  // v0.4.0: NO_VALID_RATE — mostrar tasa de mañana como info, sin calcular
+  // v0.4.1 corregido: tasa futura sin caché válido → NO calcular, mostrar info
   if (error && typeof error === 'object' && error.type === 'no_valid_rate') {
     return (
       <div
@@ -73,9 +79,21 @@ export default function ResultDisplay({ result, loading, error, mode }) {
 
   if (!result) return null
 
-  const { amount, converted, tasa, fecha, fetchedAt } = result
+  const {
+    amount,
+    converted,
+    tasa,
+    fecha,
+    fetchedAt,
+    isFuture,
+    isFallbackFromFuture,
+    publishedRateFuture,
+    isCustomRate
+  } = result
+
   const relativeTime = formatRelativeTime(fetchedAt)
   const isBsToUsd = mode === 'bs-to-usd'
+  const isCustomMode = mode === 'custom'
   const validity = getRateValidity(fecha)
 
   return (
@@ -85,48 +103,73 @@ export default function ResultDisplay({ result, loading, error, mode }) {
       aria-live="polite"
       aria-label="Resultado de la conversión"
     >
+      {isFuture && (
+        <div className="result-display__future-badge" role="status">
+          <span aria-hidden="true">⚠️</span>
+          <span>Tasa de referencia · vigente mañana</span>
+        </div>
+      )}
+
       <p className="result-display__label">
-        {isBsToUsd ? 'Son' : 'Necesitas'}
+        {isCustomMode ? 'Son' : isBsToUsd ? 'Son' : 'Necesitas'}
       </p>
 
       <p className="result-display__amount">
-        {isBsToUsd ? formatUSD(converted) : `${formatBolivares(converted)} Bs`}
+        {isCustomMode || isBsToUsd
+          ? formatUSD(converted)
+          : `${formatBolivares(converted)} Bs`}
       </p>
 
       <p className="result-display__bolivares">
-        {isBsToUsd ? (
+        {isCustomMode || isBsToUsd ? (
           <>por <strong>{formatBolivares(amount)} Bs</strong></>
         ) : (
-          <>para <strong>{formatUSD(amount)}</strong></>
+          <>por <strong>{formatUSD(amount)}</strong></>
         )}
       </p>
 
       <div className="result-display__divider" aria-hidden="true" />
 
       <div className="result-display__meta">
-        <p className="result-display__rate">
-          Tasa BCV: <strong>{formatRate(tasa)}</strong> Bs por dólar
-        </p>
+        {isCustomMode ? (
+          <p className="result-display__rate">
+            Tu tasa: <strong>{formatRate(tasa)}</strong> Bs por dólar
+            {' '}
+            <span className="result-display__custom-tag">(personalizada)</span>
+          </p>
+        ) : (
+          <p className="result-display__rate">
+            Tasa BCV: <strong>{formatRate(tasa)}</strong> Bs por dólar
+          </p>
+        )}
 
-        {validity === 'today' && (
+        {!isCustomMode && validity === 'today' && (
           <p className="result-display__validity result-display__validity--today">
             ✅ Vigente: HOY
           </p>
         )}
-        {validity === 'future' && (
+        {!isCustomMode && validity === 'future' && (
           <p className="result-display__validity result-display__validity--future">
             ⚠️ Vigente desde: mañana
           </p>
         )}
 
-        {fecha && (
+        {!isCustomMode && fecha && (
           <p className="result-display__date">
             Publicada: {fecha}
           </p>
         )}
-        {relativeTime && (
+
+        {!isCustomMode && relativeTime && (
           <p className="result-display__updated">
             Consultada {relativeTime}
+          </p>
+        )}
+
+        {isFallbackFromFuture && publishedRateFuture && (
+          <p className="result-display__published-future">
+            ℹ️ BCV ya publicó la tasa de mañana:{' '}
+            <strong>{formatRate(publishedRateFuture.tasa)}</strong> Bs/$
           </p>
         )}
       </div>

@@ -14,15 +14,13 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Tasa inicial (visible al abrir la app, sin necesidad de calcular)
+  // Tasa inicial (visible al abrir la app)
   const [initialRate, setInitialRate] = useState(null)
   const [initialRateLoading, setInitialRateLoading] = useState(true)
   const [initialRateError, setInitialRateError] = useState(null)
 
-  // Fetch automático al montar.
-  // v0.4.0: usamos fetchBCVRateForCalculation para que la tasa mostrada
-  // en InitialRateCard sea la MISMA que la app usaría para calcular
-  // (single source of truth — sin discrepancias entre lo que ve y lo que calcula).
+  // Fetch automático al montar (la única tasa que NO bloquea: si futura,
+  // marca isFuture true y la app sigue funcional 24/7).
   useEffect(() => {
     let cancelled = false
 
@@ -34,8 +32,8 @@ export default function App() {
         if (cancelled) return
         console.error('[App] Error al cargar tasa inicial:', err)
         if (err?.code === 'NO_VALID_RATE') {
-          // Caso especial: API publicó tasa futura y no hay caché válido.
-          // Pasamos error tipado con info de la tasa de mañana.
+          // Sin tasa válida hoy + BCV publicó tasa de mañana →
+          // mostramos info de mañana pero bloqueamos cálculos.
           setInitialRateError({
             type: 'no_valid_rate',
             message: getFriendlyErrorMessage(err),
@@ -83,13 +81,13 @@ export default function App() {
         fetchedAt: rate.fetchedAt,
         fromCache: rate.fromCache,
         stale: rate.stale,
+        isFuture: rate.isFuture,
         isFallbackFromFuture: rate.isFallbackFromFuture,
         publishedRateFuture: rate.publishedRateFuture
       })
 
-      // Sincronizamos initialRate con la misma tasa vigente
+      // Sincronizamos initialRate con la tasa más reciente
       setInitialRate(rate)
-      // Limpiamos el error de la tarjeta inicial si lo había
       setInitialRateError(null)
     } catch (err) {
       console.error('[App] Error al consultar tasa:', err)
@@ -107,13 +105,31 @@ export default function App() {
     }
   }
 
+  // Modo custom: calcula con la tasa que el usuario ingresa (sin API).
+  // Solo Bs → USD por ahora.
+  function handleCustomCalculate(amount, customTasa) {
+    setError(null)
+    setLoading(false) // no hay API call
+
+    const converted = amount / customTasa
+    setResult({
+      mode: 'custom',
+      amount,
+      converted,
+      tasa: customTasa,
+      fecha: null,
+      fetchedAt: Date.now(),
+      isCustomRate: true
+    })
+  }
+
   const showResultArea = result !== null || loading || error !== null
 
   return (
     <main className="app">
       <header className="app-header">
         <h1 className="app-title">¿Cuánto es?</h1>
-        <p className="app-subtitle">Convierte bolívares BCV y dólares</p>
+        {/* v0.4.1: subtítulo eliminado por petición de la usuaria — innecesario */}
       </header>
 
       <section className="app-content">
@@ -126,6 +142,7 @@ export default function App() {
         <CalculatorInput
           mode={mode}
           onCalculate={handleCalculate}
+          onCustomCalculate={handleCustomCalculate}
           onClear={handleClear}
           disabled={loading}
         />

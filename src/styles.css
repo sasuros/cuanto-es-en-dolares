@@ -274,15 +274,30 @@ input:focus-visible {
 }
 
 .mode-selector__option-main {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: var(--font-weight-bold);
   line-height: 1.1;
+  text-align: center;
 }
 
 .mode-selector__option-symbol {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: var(--font-weight-normal);
   opacity: 0.85;
+  text-align: center;
+}
+
+/* v0.4.1: viewports más estrechos con 3 opciones — letras un poco más chicas */
+@media (max-width: 380px) {
+  .mode-selector__option-main {
+    font-size: 15px;
+  }
+  .mode-selector__option-symbol {
+    font-size: 12px;
+  }
+  .mode-selector__option {
+    padding: 10px 4px;
+  }
 }
 
 /* ========================================
@@ -392,6 +407,80 @@ input:focus-visible {
 .calculator-input__clear:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ========================================
+   COMPONENTE: Custom Rate input (v0.4.1)
+   Modo "Otra tasa" — usuario ingresa el tasa manualmente.
+   ======================================== */
+.calculator-input__tasa-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calculator-input__tasa-label {
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-soft);
+}
+
+.calculator-input__tasa-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-bg-input);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 16px;
+  min-height: 60px;
+  transition: border-color 0.15s ease;
+}
+
+.calculator-input__tasa-wrapper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-focus);
+}
+
+.calculator-input__tasa-field {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-family-numbers);
+  font-size: 26px;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  padding: 12px 0;
+  text-align: right;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.calculator-input__tasa-field:focus {
+  outline: none;
+}
+
+.calculator-input__tasa-field::placeholder {
+  color: var(--color-text-dim);
+  font-weight: var(--font-weight-normal);
+}
+
+.calculator-input__tasa-unit {
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-soft);
+  user-select: none;
+}
+
+.calculator-input__tasa-hint {
+  font-size: var(--font-size-help);
+  color: var(--color-error);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ========================================
@@ -530,6 +619,36 @@ input:focus-visible {
 .result-display__updated {
   font-size: var(--font-size-help);
   color: var(--color-text-dim);
+}
+
+/* v0.4.1: badge prominente cuando se usa la tasa de mañana para calcular */
+.result-display__future-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: center;
+  padding: 8px 14px;
+  background: rgba(245, 176, 65, 0.15);
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  margin-bottom: var(--space-xs);
+}
+
+.result-display__custom-tag {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  font-style: italic;
+  font-weight: var(--font-weight-normal);
+}
+
+.result-display__published-future {
+  font-size: var(--font-size-help);
+  color: var(--color-text-dim);
+  font-style: italic;
+  margin-top: 4px;
 }
 
 .result-display__validity {

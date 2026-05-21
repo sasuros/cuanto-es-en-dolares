@@ -188,6 +188,8 @@ export async function fetchBCVRateForCalculation(opts = {}) {
     return latest
   }
 
+  // Si la tasa más reciente es futura, preferimos la última vigente
+  // del caché (cuando existe). Esa tasa es 100% correcta para calcular HOY.
   const lastValid = readLastValidRate()
   const publishedFuture = { tasa: latest.tasa, fecha: latest.fecha }
 
@@ -200,6 +202,12 @@ export async function fetchBCVRateForCalculation(opts = {}) {
     }
   }
 
+  // v0.4.1 corregido: NO calculamos con tasa de mañana. Antes (v0.4.1 inicial)
+  // devolvíamos la tasa futura con flag, pero eso permite cálculos incorrectos
+  // si el usuario no lee el warning. La regla de oro es:
+  //   "Nunca, jamás, calcular con tasa que sea del FUTURO."
+  // Lanzamos un error tipado para que la UI muestre la tasa de mañana SOLO
+  // como referencia y bloquee los cálculos.
   const err = new ApiError(
     'NO_VALID_RATE',
     'Aún no tenemos la tasa vigente de hoy'
