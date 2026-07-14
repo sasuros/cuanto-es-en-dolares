@@ -213,6 +213,20 @@ function parseSpanishDate(str) {
   return { year, month: monthIdx, day }
 }
 
+function parseIsoDate(str) {
+  if (!str || typeof str !== 'string') return null
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/)
+  if (!match) return null
+
+  const year = parseInt(match[1], 10)
+  const month = parseInt(match[2], 10) - 1
+  const day = parseInt(match[3], 10)
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null
+  }
+  return { year, month, day }
+}
+
 function todayInVenezuela() {
   // Forzamos zona horaria America/Caracas — no usamos el reloj del usuario
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -238,7 +252,7 @@ function compareYMD(a, b) {
 }
 
 export function getRateValidity(fechaString) {
-  const parsed = parseSpanishDate(fechaString)
+  const parsed = parseIsoDate(fechaString) || parseSpanishDate(fechaString)
   if (!parsed) return 'unknown'
   const today = todayInVenezuela()
   const cmp = compareYMD(parsed, today)

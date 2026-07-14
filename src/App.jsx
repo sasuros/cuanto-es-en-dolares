@@ -4,6 +4,7 @@ import CalculatorInput from './components/CalculatorInput.jsx'
 import ResultDisplay from './components/ResultDisplay.jsx'
 import InitialRateCard from './components/InitialRateCard.jsx'
 import {
+  clearObsoleteRateCaches,
   fetchBCVRateForCalculation,
   getFriendlyErrorMessage
 } from './services/apiService.js'
@@ -23,6 +24,8 @@ export default function App() {
   // marca isFuture true y la app sigue funcional 24/7).
   useEffect(() => {
     let cancelled = false
+
+    clearObsoleteRateCaches()
 
     fetchBCVRateForCalculation()
       .then(rate => {

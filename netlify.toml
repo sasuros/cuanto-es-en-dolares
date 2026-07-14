@@ -1,17 +1,9 @@
 [build]
   publish = "dist"
   command = "npm run build"
-  # Las funciones viven en netlify/functions/ (ruta por defecto, explícita para claridad)
-  functions = "netlify/functions"
-
-# ============================================
-# La función bcv-rate.mjs ya define su propia ruta (`config.path = "/api/bcv"`),
-# así que no hace falta un redirect aquí para la API.
-# ============================================
 
 # ============================================
 # SPA fallback — toda ruta sirve index.html para que la PWA funcione.
-# `force = false` para que NO intercepte /api/bcv (la función gana).
 # ============================================
 [[redirects]]
   from = "/*"

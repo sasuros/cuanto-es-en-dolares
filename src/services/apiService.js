@@ -2,15 +2,11 @@
  * Servicio para consultar la tasa BCV.
  *
  * Arquitectura:
- *   - El cliente llama a /api/bcv (mismo origen, sin CORS).
- *   - En dev: Vite proxy → bcvapi.tech (key inyectada por vite.config.js).
- *   - En prod: Netlify Function → bcvapi.tech (key inyectada server-side).
- *   - El cliente NUNCA tiene la API key.
+ *   - El cliente llama directo a ve.dolarapi.com (sin API key).
+ *   - Si DolarAPI falla, intenta bcvapi.tech como fallback legado.
  *
  * Caché en cliente:
- *   - localStorage con TTL distinto en dev (10 min) y prod (6 horas).
- *   - El CDN de Netlify también cachea 12h (para todos los usuarios).
- *   - Combinado: cuota mensual de 50 consultas BCV alcanza con sobra.
+ *   - localStorage con TTL de 30 minutos.
  *
  * Fallback offline:
  *   - Si la red falla y hay caché aunque sea vieja, la devuelve marcada como stale.
@@ -18,13 +14,15 @@
 
 import { getRateValidity } from '../utils/formatters'
 
-const API_URL = import.meta.env.VITE_BCV_API_URL || '/api/bcv'
-const IS_DEV = import.meta.env.DEV
-const CACHE_KEY = 'bcv-rate-cache-v1'
-const LAST_VALID_KEY = 'bcv-rate-last-valid-v1'  // v0.4.0: caché de la última tasa con validity ≠ 'future'
-const CACHE_TTL_MS = IS_DEV
-  ? 10 * 60 * 1000        // 10 min en desarrollo (testing rápido)
-  : 6 * 60 * 60 * 1000    // 6 horas en producción
+const DOLAR_API_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
+const BCVAPI_FALLBACK_URL = 'https://bcvapi.tech/api/v1/dolar'
+const CACHE_KEY = 'bcv-rate-cache-v2'
+const LAST_VALID_KEY = 'bcv-rate-last-valid-v2'  // caché de la última tasa con validity != 'future'
+const OLD_CACHE_KEYS = [
+  'bcv-rate-cache-v1',
+  'bcv-rate-last-valid-v1'
+]
+const CACHE_TTL_MS = 30 * 60 * 1000
 const FETCH_TIMEOUT_MS = 8000
 
 /**
@@ -41,7 +39,7 @@ export async function fetchBCVRate({ forceRefresh = false } = {}) {
   }
 
   try {
-    const data = await fetchFromEndpoint()
+    const data = await fetchLatestRate()
     writeCache(data)
     return { ...data, fromCache: false }
   } catch (networkError) {
@@ -52,13 +50,61 @@ export async function fetchBCVRate({ forceRefresh = false } = {}) {
   }
 }
 
-async function fetchFromEndpoint() {
+async function fetchLatestRate() {
+  let primaryError
+
+  try {
+    return await fetchDolarApiRate()
+  } catch (err) {
+    primaryError = err
+    console.warn('[apiService] DolarAPI falló, probando fallback bcvapi.tech:', err)
+  }
+
+  try {
+    return await fetchBcvApiFallbackRate()
+  } catch (fallbackError) {
+    fallbackError.primaryError = primaryError
+    throw fallbackError
+  }
+}
+
+async function fetchDolarApiRate() {
+  const body = await fetchJson(DOLAR_API_URL)
+
+  if (typeof body?.promedio !== 'number' || !body?.fechaActualizacion) {
+    throw new ApiError('PARSE', 'Respuesta de DolarAPI no tiene los campos esperados')
+  }
+
+  return {
+    tasa: body.promedio,
+    fecha: body.fechaActualizacion,
+    fuente: 'DolarAPI',
+    fetchedAt: Date.now()
+  }
+}
+
+async function fetchBcvApiFallbackRate() {
+  const body = await fetchJson(BCVAPI_FALLBACK_URL)
+
+  if (typeof body?.tasa !== 'number' || !body?.fecha) {
+    throw new ApiError('PARSE', 'Respuesta de bcvapi.tech no tiene los campos esperados')
+  }
+
+  return {
+    tasa: body.tasa,
+    fecha: body.fecha,
+    fuente: body.fuente || 'bcvapi.tech',
+    fetchedAt: Date.now()
+  }
+}
+
+async function fetchJson(url) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
   let response
   try {
-    response = await fetch(API_URL, {
+    response = await fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: controller.signal
@@ -87,16 +133,7 @@ async function fetchFromEndpoint() {
     throw new ApiError(code, message)
   }
 
-  if (typeof body?.tasa !== 'number' || !body?.fecha) {
-    throw new ApiError('PARSE', 'Respuesta no tiene los campos esperados')
-  }
-
-  return {
-    tasa: body.tasa,
-    fecha: body.fecha,
-    fuente: body.fuente,
-    fetchedAt: Date.now()
-  }
+  return body
 }
 
 function mapStatusToCode(status) {
@@ -155,6 +192,16 @@ export function clearRateCache() {
   try {
     localStorage.removeItem(CACHE_KEY)
     localStorage.removeItem(LAST_VALID_KEY)
+  } catch {
+    // ignorar
+  }
+}
+
+export function clearObsoleteRateCaches() {
+  try {
+    for (const key of OLD_CACHE_KEYS) {
+      localStorage.removeItem(key)
+    }
   } catch {
     // ignorar
   }
