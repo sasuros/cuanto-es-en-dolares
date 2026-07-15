@@ -7,6 +7,7 @@ import { findTotal } from '../utils/ocrUtils'
 
 const OCR_STATE = {
   IDLE: 'idle',
+  PREVIEW: 'preview',
   PROCESSING: 'processing',
   SUCCESS: 'success',
   FAILURE: 'failure'
@@ -26,12 +27,15 @@ export default function CameraCapture({
   disabled = false,
   preloadStatus = 'idle'
 }) {
-  const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
+  const galleryInputRef = useRef(null)
   const [state, setState] = useState(OCR_STATE.IDLE)
   const [progress, setProgress] = useState(0)
   const [progressMessage, setProgressMessage] = useState('')
   const [editableAmount, setEditableAmount] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState('')
 
   function resetToIdle() {
     setState(OCR_STATE.IDLE)
@@ -39,15 +43,28 @@ export default function CameraCapture({
     setProgressMessage('')
     setEditableAmount('')
     setErrorMessage('')
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    setSelectedFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl('')
+    clearFileInputs()
   }
 
-  function handleScanClick() {
+  function clearFileInputs() {
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
+    if (galleryInputRef.current) galleryInputRef.current.value = ''
+  }
+
+  function handleCameraClick() {
     if (disabled) return
-    fileInputRef.current?.click()
+    cameraInputRef.current?.click()
   }
 
-  async function handleImageSelected(event) {
+  function handleGalleryClick() {
+    if (disabled) return
+    galleryInputRef.current?.click()
+  }
+
+  function handleImageSelected(event) {
     const file = event.target.files?.[0]
     if (!file) {
       setErrorMessage(OCR_ERROR_MESSAGES.CAMERA)
@@ -55,13 +72,28 @@ export default function CameraCapture({
       return
     }
 
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setSelectedFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+    setErrorMessage('')
+    setState(OCR_STATE.PREVIEW)
+    clearFileInputs()
+  }
+
+  async function handleScanSelectedImage() {
+    if (!selectedFile) {
+      setErrorMessage(OCR_ERROR_MESSAGES.CAMERA)
+      setState(OCR_STATE.FAILURE)
+      return
+    }
+
     setState(OCR_STATE.PROCESSING)
     setProgress(5)
-    setProgressMessage('Preparando la foto...')
+    setProgressMessage('Mejorando la imagen...')
 
     try {
-      const compressed = await compressImage(file)
-      const result = await extractTotalFromImage(compressed, ({ progress: nextProgress, message }) => {
+      const processed = await preprocessForOCR(selectedFile)
+      const result = await extractTotalFromImage(processed, ({ progress: nextProgress, message }) => {
         setProgress(nextProgress)
         setProgressMessage(message)
       })
@@ -80,8 +112,6 @@ export default function CameraCapture({
       console.error('[CameraCapture] OCR falló:', err)
       setErrorMessage(OCR_ERROR_MESSAGES[err?.code] || OCR_ERROR_MESSAGES.TESSERACT)
       setState(OCR_STATE.FAILURE)
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -100,6 +130,41 @@ export default function CameraCapture({
   function handleManualEntry() {
     resetToIdle()
     onManualEntry?.()
+  }
+
+  if (state === OCR_STATE.PREVIEW) {
+    return (
+      <div className="camera-capture camera-capture--card" role="status" aria-live="polite">
+        <p className="camera-capture__title">Revisa la foto</p>
+        {previewUrl && (
+          <img
+            className="camera-capture__preview"
+            src={previewUrl}
+            alt="Vista previa de la factura"
+          />
+        )}
+        <p className="camera-capture__hint">
+          💡 Acerca la cámara al TOTAL de la factura.
+        </p>
+        <div className="camera-capture__actions-row">
+          <button
+            type="button"
+            className="camera-capture__confirm"
+            onClick={handleScanSelectedImage}
+          >
+            🔍 Escanear
+          </button>
+          <button
+            type="button"
+            className="camera-capture__secondary"
+            onClick={resetToIdle}
+          >
+            Cancelar
+          </button>
+        </div>
+        {renderFileInputs()}
+      </div>
+    )
   }
 
   if (state === OCR_STATE.PROCESSING) {
@@ -150,7 +215,7 @@ export default function CameraCapture({
         <button
           type="button"
           className="camera-capture__secondary"
-          onClick={handleScanClick}
+          onClick={handleCameraClick}
         >
           Intentar de nuevo
         </button>
@@ -161,7 +226,7 @@ export default function CameraCapture({
         >
           Escribir manualmente
         </button>
-        {renderFileInput()}
+        {renderFileInputs()}
       </div>
     )
   }
@@ -179,7 +244,7 @@ export default function CameraCapture({
         <button
           type="button"
           className="camera-capture__secondary"
-          onClick={handleScanClick}
+          onClick={handleCameraClick}
         >
           Intentar de nuevo
         </button>
@@ -190,41 +255,63 @@ export default function CameraCapture({
         >
           Escribir manualmente
         </button>
-        {renderFileInput()}
+        {renderFileInputs()}
       </div>
     )
   }
 
   return (
     <div className="camera-capture">
-      <button
-        type="button"
-        className="camera-capture__button"
-        onClick={handleScanClick}
-        disabled={disabled}
-      >
-        <span aria-hidden="true">📸</span>
-        <span>Escanear factura</span>
-      </button>
+      <div className="camera-capture__buttons">
+        <button
+          type="button"
+          className="camera-capture__button camera-capture__button--capture"
+          onClick={handleCameraClick}
+          disabled={disabled}
+        >
+          <span aria-hidden="true">📸</span>
+          <span>Tomar foto</span>
+        </button>
+        <button
+          type="button"
+          className="camera-capture__button camera-capture__button--gallery"
+          onClick={handleGalleryClick}
+          disabled={disabled}
+        >
+          <span aria-hidden="true">🖼️</span>
+          <span>Galería</span>
+        </button>
+      </div>
       {preloadStatus === 'loading' && (
         <p className="camera-capture__preload">Descargando escáner en segundo plano...</p>
       )}
-      {renderFileInput()}
+      {renderFileInputs()}
     </div>
   )
 
-  function renderFileInput() {
+  function renderFileInputs() {
     return (
-      <input
-        ref={fileInputRef}
-        className="camera-capture__file"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleImageSelected}
-        aria-label="Tomar foto o escoger imagen de factura"
-        disabled={disabled}
-      />
+      <>
+        <input
+          ref={cameraInputRef}
+          className="camera-capture__file"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleImageSelected}
+          aria-label="Tomar foto de factura"
+          disabled={disabled}
+        />
+        <input
+          ref={galleryInputRef}
+          className="camera-capture__file"
+          type="file"
+          accept="image/*"
+          onChange={handleImageSelected}
+          aria-label="Escoger foto de factura desde galería"
+          disabled={disabled}
+        />
+      </>
     )
   }
 }
@@ -236,6 +323,7 @@ async function extractTotalFromImage(imageFile, onProgress) {
     imageFile,
     'spa',
     {
+      tessedit_pageseg_mode: '6',
       logger: (info) => {
         if (info.status === 'loading language traineddata') {
           onProgress?.({
@@ -261,13 +349,13 @@ async function extractTotalFromImage(imageFile, onProgress) {
   }
 }
 
-function compressImage(file, maxWidth = 1500) {
+export function preprocessForOCR(file, minWidth = 2000) {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
 
     img.onload = () => {
-      const ratio = Math.min(maxWidth / img.width, 1)
+      const ratio = Math.max(minWidth / img.width, 1)
       const canvas = document.createElement('canvas')
       canvas.width = Math.max(1, Math.round(img.width * ratio))
       canvas.height = Math.max(1, Math.round(img.height * ratio))
@@ -280,13 +368,36 @@ function compressImage(file, maxWidth = 1500) {
       }
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+      let darkPixels = 0
+      const totalPixels = data.length / 4
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+        if (gray < 128) darkPixels++
+      }
+
+      const invert = darkPixels / totalPixels > 0.6
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+        const bw = invert
+          ? (gray < 140 ? 255 : 0)
+          : (gray < 140 ? 0 : 255)
+        data[i] = bw
+        data[i + 1] = bw
+        data[i + 2] = bw
+      }
+
+      ctx.putImageData(imageData, 0, 0)
       canvas.toBlob(
         blob => {
           URL.revokeObjectURL(url)
           resolve(blob || file)
         },
-        'image/jpeg',
-        0.8
+        'image/png'
       )
     }
 

@@ -30,17 +30,34 @@ export default defineConfig(() => {
           ]
         },
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
           globPatterns: ['**/*.{js,css,html,svg,ico}'],
+          navigateFallback: '/index.html',
           runtimeCaching: [
             {
-              urlPattern: /^https:\/\/ve\.dolarapi\.com\/v1\/dolares$/i,
+              urlPattern: /^https:\/\/ve\.dolarapi\.com/i,
               handler: 'NetworkFirst',
               options: {
-                cacheName: 'bcv-api-cache-v2',
+                cacheName: 'api-cache',
                 networkTimeoutSeconds: 5,
                 expiration: {
                   maxEntries: 5,
                   maxAgeSeconds: 60 * 30
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
+            },
+            {
+              urlPattern: /\.(js|css|png|svg|ico|woff2?)$/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'static-assets',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 7 * 24 * 60 * 60
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
