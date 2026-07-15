@@ -276,8 +276,11 @@ export default function CalculatorInput({
     if (amount > 0) onCalculate(amount)
   }
 
-  function handleOcrAmountDetected(amount) {
-    const newRaw = String(amount).replace('.', ',')
+  function handleOcrAmountDetected(inputValue, detectedAmount) {
+    const newRaw = sanitizeBsInputDecimal(String(inputValue))
+    const amount = Number.isFinite(detectedAmount)
+      ? detectedAmount
+      : parseBolivares(newRaw)
     setRaw(newRaw)
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)

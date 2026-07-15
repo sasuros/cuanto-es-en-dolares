@@ -1,12 +1,19 @@
-const TOTAL_PATTERNS = ['T0TA1', 'TTA1', 'T0TB1']
+const TOTAL_PATTERNS = ['T0TA1', 'T0TA1:', 'TTA1', 'T0TB1', 'T0TAI', 'TTAI']
 const SUBTOTAL_PATTERNS = ['SUBT0TA1', 'SUB T0TA1', 'SUBTTT1', 'SUB-T0TA1', 'SUBTT1']
 const BS_PATTERNS = ['BS', 'BS.', 'B1V', 'B011V', 'B011VAR']
+const LOW_AMOUNT_THRESHOLD = 50
 
 export function findTotal(text) {
+  return findTotalResult(text).amount
+}
+
+export function findTotalResult(text) {
   const lines = String(text || '')
     .split('\n')
     .map(line => normalizeOcrText(line).trim())
     .filter(Boolean)
+
+  const allAmounts = collectAmounts(lines)
 
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]
@@ -14,62 +21,66 @@ export function findTotal(text) {
     const isSubtotal = SUBTOTAL_PATTERNS.some(pattern => line.includes(pattern))
 
     if (hasTotal && !isSubtotal) {
-      const amount = extractAmount(line)
-      if (amount && amount > 50) return amount
+      const nearbyAmounts = [
+        ...extractAmounts(line),
+        ...(i + 1 < lines.length ? extractAmounts(lines[i + 1]) : []),
+        ...(i - 1 >= 0 ? extractAmounts(lines[i - 1]) : [])
+      ]
+      const amount = pickBestAmount(nearbyAmounts, allAmounts)
 
-      if (i + 1 < lines.length) {
-        const nextAmount = extractAmount(lines[i + 1])
-        if (nextAmount && nextAmount > 50) return nextAmount
-      }
-
-      if (i - 1 >= 0) {
-        const prevAmount = extractAmount(lines[i - 1])
-        if (prevAmount && prevAmount > 50) return prevAmount
-      }
+      if (amount) return buildTotalResult(amount)
     }
   }
 
   const bsAmounts = []
   for (const line of lines) {
     if (BS_PATTERNS.some(pattern => line.includes(pattern))) {
-      const amount = extractAmount(line)
-      if (amount && amount > 50) bsAmounts.push(amount)
+      bsAmounts.push(...extractAmounts(line))
     }
   }
 
-  if (bsAmounts.length > 0) return Math.max(...bsAmounts)
+  if (bsAmounts.length > 0) return buildTotalResult(pickBestAmount(bsAmounts, allAmounts))
 
   const start = Math.max(0, lines.length - 5)
+  const trailingAmounts = []
   for (let i = lines.length - 1; i >= start; i--) {
-    const amount = extractAmount(lines[i])
-    if (amount && amount > 100) return amount
+    trailingAmounts.push(...extractAmounts(lines[i]))
   }
 
-  return null
+  if (trailingAmounts.length > 0) {
+    return buildTotalResult(pickBestAmount(trailingAmounts, allAmounts))
+  }
+
+  return { amount: null, warning: null }
 }
 
 export function extractAmount(text) {
+  const amounts = extractAmounts(text)
+  return amounts.length > 0 ? amounts[0] : null
+}
+
+export function extractAmounts(text) {
   const cleaned = normalizeOcrText(text)
 
   const venezuelanPattern = /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{4,}(?:,\d{1,2})?|\d{1,3}(?:,\d{1,2}))/g
   const matches = [...cleaned.matchAll(venezuelanPattern)]
   if (matches.length > 0) {
-    const best = matches.reduce((currentBest, match) =>
-      match[1].length > currentBest[1].length ? match : currentBest
-    )
-    return parseVenezuelanAmount(best[1])
+    return matches
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(match => parseVenezuelanAmount(match[1]))
+      .filter(amount => amount && Number.isFinite(amount))
   }
 
   const simplePattern = /(\d+(?:[.,]\d{1,2})?)/g
   const simpleMatches = [...cleaned.matchAll(simplePattern)]
   if (simpleMatches.length > 0) {
-    const best = simpleMatches.reduce((currentBest, match) =>
-      match[1].length > currentBest[1].length ? match : currentBest
-    )
-    return parseVenezuelanAmount(best[1])
+    return simpleMatches
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(match => parseVenezuelanAmount(match[1]))
+      .filter(amount => amount && Number.isFinite(amount))
   }
 
-  return null
+  return []
 }
 
 export function parseVenezuelanAmount(str) {
@@ -87,4 +98,36 @@ function normalizeOcrText(text) {
     .replace(/[O]/g, '0')
     .replace(/[LI]/g, '1')
     .replace(/\s+/g, ' ')
+}
+
+function collectAmounts(lines) {
+  return lines.flatMap(line => extractAmounts(line))
+}
+
+function pickBestAmount(candidates, allAmounts) {
+  const validCandidates = candidates.filter(amount => amount && Number.isFinite(amount))
+  if (validCandidates.length === 0) return null
+
+  return validCandidates.reduce((best, amount) => {
+    const amountCount = countSimilarAmounts(allAmounts, amount)
+    const bestCount = countSimilarAmounts(allAmounts, best)
+
+    if (amountCount !== bestCount) return amountCount > bestCount ? amount : best
+    return amount > best ? amount : best
+  }, validCandidates[0])
+}
+
+function countSimilarAmounts(amounts, target) {
+  return amounts.filter(amount => Math.abs(amount - target) < 0.01).length
+}
+
+function buildTotalResult(amount) {
+  if (!amount) return { amount: null, warning: null }
+
+  return {
+    amount,
+    warning: amount < LOW_AMOUNT_THRESHOLD
+      ? 'Monto parece muy bajo. ¿Es correcto?'
+      : null
+  }
 }

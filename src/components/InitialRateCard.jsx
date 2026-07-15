@@ -1,8 +1,8 @@
 import {
   formatRate,
-  formatRelativeTime,
   getRateValidity
 } from '../utils/formatters'
+import { readPreviousRateSnapshot } from '../services/apiService.js'
 
 /**
  * Tarjeta que muestra la tasa BCV vigente al abrir la app.
@@ -73,18 +73,18 @@ export default function InitialRateCard({ rate, paralelo, loading, error }) {
   }
 
   const validity = getRateValidity(rate.fecha)
-  const relativeTime = formatRelativeTime(rate.fetchedAt)
   const isFuture = rate.isFuture === true
   const showParalelo =
     paralelo &&
     Number.isFinite(paralelo.tasa) &&
     Number.isFinite(rate.tasa) &&
     rate.tasa > 0
-  const gapPercent = showParalelo
-    ? ((paralelo.tasa - rate.tasa) / rate.tasa) * 100
-    : 0
-  const showGap = showParalelo && Math.abs(gapPercent) >= 0.05
-  const gapIsLower = gapPercent < 0
+  const previousRates = readPreviousRateSnapshot()
+  const bcvVariation = getDailyVariation(rate.tasa, previousRates?.bcv?.tasa)
+  const paraleloVariation = showParalelo
+    ? getDailyVariation(paralelo.tasa, previousRates?.paralelo?.tasa)
+    : null
+  const publishedDate = formatPublishedDate(rate.fecha)
 
   return (
     <div
@@ -99,14 +99,24 @@ export default function InitialRateCard({ rate, paralelo, loading, error }) {
         </div>
       )}
 
-      <p className="result-display__label">Tasa BCV hoy</p>
+      <p className="result-display__label initial-rate-card__title">Dólar BCV</p>
 
-      <p className="result-display__amount initial-rate-card__amount">
-        {formatRate(rate.tasa)}
-        <span className="initial-rate-card__currency"> Bs / $</span>
-      </p>
-
-      <div className="result-display__divider" aria-hidden="true" />
+      <div className={`initial-rate-card__pills${showParalelo ? '' : ' initial-rate-card__pills--single'}`}>
+        <RatePill
+          label="BCV"
+          value={rate.tasa}
+          variation={bcvVariation}
+          tone="primary"
+        />
+        {showParalelo && (
+          <RatePill
+            label="Paralelo"
+            value={paralelo.tasa}
+            variation={paraleloVariation}
+            tone="secondary"
+          />
+        )}
+      </div>
 
       <div className="result-display__meta">
         {validity === 'today' && (
@@ -122,43 +132,59 @@ export default function InitialRateCard({ rate, paralelo, loading, error }) {
 
         {rate.fecha && (
           <p className="result-display__date">
-            Publicada: {rate.fecha}
-          </p>
-        )}
-
-        {relativeTime && (
-          <p className="result-display__updated">
-            Consultada {relativeTime}
+            Publicada: {publishedDate}
           </p>
         )}
       </div>
+    </div>
+  )
+}
 
-      {showParalelo && (
-        <>
-          <div className="result-display__divider" aria-hidden="true" />
-
-          <div className="parallel-rate">
-            <p className="parallel-rate__line">
-              <span className="parallel-rate__label">Paralelo:</span>
-              <strong className="parallel-rate__value">
-                {formatRate(paralelo.tasa)} Bs/$
-              </strong>
-            </p>
-
-            {showGap && (
-              <p
-                className={
-                  'parallel-rate__gap ' +
-                  (gapIsLower ? 'parallel-rate__gap--lower' : 'parallel-rate__gap--higher')
-                }
-              >
-                {gapIsLower ? '↓' : '↑'} {Math.abs(gapPercent).toFixed(1)}%{' '}
-                {gapIsLower ? 'menos' : 'más'} que BCV
-              </p>
-            )}
-          </div>
-        </>
+function RatePill({ label, value, variation, tone }) {
+  return (
+    <div className={`initial-rate-pill initial-rate-pill--${tone}`}>
+      <p className="initial-rate-pill__value">{formatRate(value)}</p>
+      <p className="initial-rate-pill__label">{label}</p>
+      {variation && (
+        <p
+          className={
+            'initial-rate-pill__variation ' +
+            (variation.isLower ? 'initial-rate-pill__variation--lower' : 'initial-rate-pill__variation--higher')
+          }
+        >
+          {variation.isLower ? '▼' : '▲'}{Math.abs(variation.percent).toFixed(2)}%
+        </p>
       )}
     </div>
   )
+}
+
+function getDailyVariation(currentValue, previousValue) {
+  const current = Number(currentValue)
+  const previous = Number(previousValue)
+
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous <= 0) {
+    return null
+  }
+
+  const percent = ((current - previous) / previous) * 100
+  if (Math.abs(percent) < 0.005) return null
+
+  return {
+    percent,
+    isLower: percent < 0
+  }
+}
+
+function formatPublishedDate(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('es-VE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(date)
 }

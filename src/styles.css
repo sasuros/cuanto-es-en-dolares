@@ -782,6 +782,24 @@ input:focus-visible {
   color: var(--color-text);
 }
 
+.camera-capture__amount-display {
+  font-family: var(--font-family-numbers);
+  font-size: 28px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-capture__warning {
+  padding: 8px 10px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  color: var(--color-accent);
+  background: rgba(245, 176, 65, 0.12);
+  font-size: var(--font-size-help);
+  font-weight: var(--font-weight-bold);
+}
+
 .camera-capture__progress {
   width: 100%;
   height: 10px;
@@ -1094,6 +1112,78 @@ input:focus-visible {
 /* Variante info: card de tasa al abrir la app (más sobrio que --success) */
 .result-display--info {
   border: 1px solid var(--color-border-soft);
+}
+
+.initial-rate-card__title {
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+}
+
+.initial-rate-card__pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin: var(--space-sm) 0;
+}
+
+.initial-rate-card__pills--single {
+  grid-template-columns: 1fr;
+}
+
+.initial-rate-pill {
+  min-width: 0;
+  padding: 12px 10px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.initial-rate-pill--primary {
+  border-color: var(--color-primary);
+}
+
+.initial-rate-pill--secondary {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.initial-rate-pill__value {
+  font-family: var(--font-family-numbers);
+  font-size: clamp(24px, 8vw, 34px);
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary-display);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.initial-rate-pill--secondary .initial-rate-pill__value {
+  color: var(--color-text);
+}
+
+.initial-rate-pill__label {
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-soft);
+}
+
+.initial-rate-pill__variation {
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+}
+
+.initial-rate-pill__variation--lower {
+  color: var(--color-success);
+}
+
+.initial-rate-pill__variation--higher {
+  color: var(--color-accent);
 }
 
 /* La tasa en el card inicial se muestra grande pero no tan grande

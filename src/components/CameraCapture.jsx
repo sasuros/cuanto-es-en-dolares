@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react'
 import {
-  formatBolivares,
   parseBolivares
 } from '../utils/formatters'
-import { findTotal } from '../utils/ocrUtils'
+import { findTotalResult, parseVenezuelanAmount } from '../utils/ocrUtils'
 
 const OCR_STATE = {
   IDLE: 'idle',
@@ -34,6 +33,7 @@ export default function CameraCapture({
   const [progressMessage, setProgressMessage] = useState('')
   const [editableAmount, setEditableAmount] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [warningMessage, setWarningMessage] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
 
@@ -43,6 +43,7 @@ export default function CameraCapture({
     setProgressMessage('')
     setEditableAmount('')
     setErrorMessage('')
+    setWarningMessage('')
     setSelectedFile(null)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPreviewUrl('')
@@ -76,6 +77,7 @@ export default function CameraCapture({
     setSelectedFile(file)
     setPreviewUrl(URL.createObjectURL(file))
     setErrorMessage('')
+    setWarningMessage('')
     setState(OCR_STATE.PREVIEW)
     clearFileInputs()
   }
@@ -101,11 +103,12 @@ export default function CameraCapture({
       if (!result.rawText?.trim()) {
         throw createOcrError('NO_TEXT')
       }
-      if (!result.total) {
+      if (!result.total?.amount) {
         throw createOcrError('NO_TOTAL')
       }
 
-      setEditableAmount(formatBolivares(String(result.total).replace('.', ',')))
+      setEditableAmount(formatOCRAmountForInput(result.total.amount))
+      setWarningMessage(result.total.warning || '')
       setProgress(100)
       setState(OCR_STATE.SUCCESS)
     } catch (err) {
@@ -116,14 +119,14 @@ export default function CameraCapture({
   }
 
   function handleConfirm() {
-    const amount = parseBolivares(editableAmount)
+    const amount = parseVenezuelanAmount(editableAmount) || parseBolivares(editableAmount)
     if (!Number.isFinite(amount) || amount <= 0) {
       setErrorMessage('Revisa el monto detectado o escríbelo manualmente.')
       setState(OCR_STATE.FAILURE)
       return
     }
 
-    onAmountDetected?.(amount)
+    onAmountDetected?.(formatOCRAmountForInput(amount), amount)
     resetToIdle()
   }
 
@@ -197,6 +200,14 @@ export default function CameraCapture({
     return (
       <div className="camera-capture camera-capture--card" role="status" aria-live="polite">
         <p className="camera-capture__title">✅ Total detectado:</p>
+        <p className="camera-capture__amount-display">
+          {editableAmount || '0'} Bs
+        </p>
+        {warningMessage && (
+          <p className="camera-capture__warning" role="alert">
+            {warningMessage}
+          </p>
+        )}
         <input
           className="camera-capture__amount-input"
           type="text"
@@ -343,10 +354,25 @@ async function extractTotalFromImage(imageFile, onProgress) {
 
   const text = result.data.text || ''
   return {
-    total: findTotal(text),
+    total: findTotalResult(text),
     rawText: text,
     confidence: result.data.confidence
   }
+}
+
+export function formatOCRAmountForInput(amount) {
+  const num = Number(amount)
+  if (!Number.isFinite(num)) return ''
+
+  const rounded = Math.round(num)
+  if (Math.abs(num - rounded) < 0.005) {
+    return rounded.toLocaleString('es-VE')
+  }
+
+  return num.toLocaleString('es-VE', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  })
 }
 
 export function preprocessForOCR(file, minWidth = 2000) {

@@ -20,6 +20,7 @@ const DOLAR_API_OFICIAL_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
 const BCVAPI_FALLBACK_URL = 'https://bcvapi.tech/api/v1/dolar'
 const CACHE_KEY = 'bcv-rate-cache-v2'
 const LAST_VALID_KEY = 'bcv-rate-last-valid-v2'  // caché de la última tasa con validity != 'future'
+const PREVIOUS_RATES_KEY = 'bcv-rate-previous-v1'
 const OLD_CACHE_KEYS = [
   'bcv-rate-cache-v1',
   'bcv-rate-last-valid-v1'
@@ -219,6 +220,22 @@ function readCache() {
 
 function writeCache(data) {
   try {
+    const previous = readCache()
+    const previousBcv = getBcvRateFromData(previous?.data)
+    const nextBcv = getBcvRateFromData(data)
+
+    if (
+      previous?.data &&
+      previousBcv?.fecha &&
+      nextBcv?.fecha &&
+      previousBcv.fecha !== nextBcv.fecha
+    ) {
+      localStorage.setItem(PREVIOUS_RATES_KEY, JSON.stringify({
+        data: previous.data,
+        savedAt: previous.savedAt || Date.now()
+      }))
+    }
+
     const entry = JSON.stringify({ data, savedAt: Date.now() })
     localStorage.setItem(CACHE_KEY, entry)
 
@@ -274,8 +291,21 @@ export function clearRateCache() {
   try {
     localStorage.removeItem(CACHE_KEY)
     localStorage.removeItem(LAST_VALID_KEY)
+    localStorage.removeItem(PREVIOUS_RATES_KEY)
   } catch {
     // ignorar
+  }
+}
+
+export function readPreviousRateSnapshot() {
+  try {
+    const raw = localStorage.getItem(PREVIOUS_RATES_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.data || typeof parsed.savedAt !== 'number') return null
+    return { ...getRatesFromCache(parsed), savedAt: parsed.savedAt }
+  } catch {
+    return null
   }
 }
 
