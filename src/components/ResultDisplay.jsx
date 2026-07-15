@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   formatUSD,
   formatRate,
@@ -18,6 +19,25 @@ import {
  * mostramos un badge "Tasa de referencia" y permitimos calcular igual.
  */
 export default function ResultDisplay({ result, loading, error, paralelo, mode }) {
+  const [copied, setCopied] = useState(false)
+  const cleanCopyValue = result
+    ? getCleanCopyValue(result.converted, getResultIsInUsd(result, mode))
+    : ''
+
+  useEffect(() => {
+    if (!copied) return undefined
+
+    const timeoutId = window.setTimeout(() => {
+      setCopied(false)
+    }, 2000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [copied])
+
+  useEffect(() => {
+    setCopied(false)
+  }, [cleanCopyValue])
+
   if (loading) {
     return (
       <div
@@ -95,9 +115,7 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
   const relativeTime = formatRelativeTime(fetchedAt)
   const isBsToUsd = mode === 'bs-to-usd'
   const isCustomMode = mode === 'custom'
-  // v0.4.2: custom mode bidireccional
-  const customIsBsToUsd = customDirection === 'bs'
-  const resultIsInUsd = isCustomMode ? customIsBsToUsd : isBsToUsd
+  const resultIsInUsd = getResultIsInUsd(result, mode)
   const validity = getRateValidity(fecha)
   const parallelRate = paralelo || result.paralelo || null
   const showParallelResult =
@@ -132,6 +150,15 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
           ? formatUSD(converted)
           : `${formatBolivares(converted)} Bs`}
       </p>
+
+      <button
+        type="button"
+        className={`copy-button${copied ? ' copy-button--copied' : ''}`}
+        onClick={() => handleCopyResult(cleanCopyValue, setCopied)}
+        aria-label={copied ? 'Resultado copiado' : 'Copiar resultado'}
+      >
+        {copied ? '✅ Copiado' : '📋 Copiar'}
+      </button>
 
       <p className="result-display__bolivares">
         {resultIsInUsd ? (
@@ -208,4 +235,42 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
       )}
     </div>
   )
+}
+
+function getResultIsInUsd(result, mode) {
+  return mode === 'custom' ? result.customDirection === 'bs' : mode === 'bs-to-usd'
+}
+
+function getCleanCopyValue(value, resultIsInUsd) {
+  const numericValue = Number(value)
+
+  if (!Number.isFinite(numericValue)) return ''
+
+  if (resultIsInUsd) {
+    return numericValue.toFixed(2)
+  }
+
+  return Number.isInteger(numericValue)
+    ? String(numericValue)
+    : String(Number(numericValue.toFixed(2)))
+}
+
+async function handleCopyResult(cleanNumber, setCopied) {
+  if (!cleanNumber) return
+
+  try {
+    await navigator.clipboard.writeText(cleanNumber)
+  } catch {
+    const textArea = document.createElement('textarea')
+    textArea.value = cleanNumber
+    textArea.setAttribute('readonly', '')
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+  }
+
+  setCopied(true)
 }
