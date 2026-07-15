@@ -17,7 +17,7 @@ import {
  * v0.4.1: si result.isFuture (la tasa BCV usada es para mañana),
  * mostramos un badge "Tasa de referencia" y permitimos calcular igual.
  */
-export default function ResultDisplay({ result, loading, error, mode }) {
+export default function ResultDisplay({ result, loading, error, paralelo, mode }) {
   if (loading) {
     return (
       <div
@@ -99,6 +99,15 @@ export default function ResultDisplay({ result, loading, error, mode }) {
   const customIsBsToUsd = customDirection === 'bs'
   const resultIsInUsd = isCustomMode ? customIsBsToUsd : isBsToUsd
   const validity = getRateValidity(fecha)
+  const parallelRate = paralelo || result.paralelo || null
+  const showParallelResult =
+    !isCustomMode &&
+    parallelRate &&
+    Number.isFinite(parallelRate.tasa) &&
+    parallelRate.tasa > 0
+  const convertedWithParallel = showParallelResult
+    ? (isBsToUsd ? amount / parallelRate.tasa : amount * parallelRate.tasa)
+    : null
 
   return (
     <div
@@ -177,6 +186,26 @@ export default function ResultDisplay({ result, loading, error, mode }) {
           </p>
         )}
       </div>
+
+      {showParallelResult && (
+        <>
+          <div className="result-display__divider" aria-hidden="true" />
+
+          <div className="parallel-result">
+            <p className="parallel-result__line">
+              <span className="parallel-result__label">Con paralelo:</span>
+              <strong className="parallel-result__value">
+                {isBsToUsd
+                  ? formatUSD(convertedWithParallel)
+                  : `${formatBolivares(convertedWithParallel)} Bs`}
+              </strong>
+            </p>
+            <p className="parallel-result__rate">
+              ({formatRate(parallelRate.tasa)} Bs/$)
+            </p>
+          </div>
+        </>
+      )}
     </div>
   )
 }

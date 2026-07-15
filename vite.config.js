@@ -33,7 +33,7 @@ export default defineConfig(() => {
           globPatterns: ['**/*.{js,css,html,svg,ico}'],
           runtimeCaching: [
             {
-              urlPattern: /^https:\/\/ve\.dolarapi\.com\/v1\/dolares\/oficial$/i,
+              urlPattern: /^https:\/\/ve\.dolarapi\.com\/v1\/dolares$/i,
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'bcv-api-cache-v2',

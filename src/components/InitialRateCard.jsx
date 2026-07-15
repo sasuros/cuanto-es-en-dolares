@@ -9,7 +9,7 @@ import {
  * v0.4.1: si la tasa es futura, se muestra con badge "Tasa de referencia"
  * pero NO bloquea la app (calculadora sigue funcional 24/7).
  */
-export default function InitialRateCard({ rate, loading, error }) {
+export default function InitialRateCard({ rate, paralelo, loading, error }) {
   if (loading) {
     return (
       <div
@@ -75,6 +75,16 @@ export default function InitialRateCard({ rate, loading, error }) {
   const validity = getRateValidity(rate.fecha)
   const relativeTime = formatRelativeTime(rate.fetchedAt)
   const isFuture = rate.isFuture === true
+  const showParalelo =
+    paralelo &&
+    Number.isFinite(paralelo.tasa) &&
+    Number.isFinite(rate.tasa) &&
+    rate.tasa > 0
+  const gapPercent = showParalelo
+    ? ((paralelo.tasa - rate.tasa) / rate.tasa) * 100
+    : 0
+  const showGap = showParalelo && Math.abs(gapPercent) >= 0.05
+  const gapIsLower = gapPercent < 0
 
   return (
     <div
@@ -122,6 +132,33 @@ export default function InitialRateCard({ rate, loading, error }) {
           </p>
         )}
       </div>
+
+      {showParalelo && (
+        <>
+          <div className="result-display__divider" aria-hidden="true" />
+
+          <div className="parallel-rate">
+            <p className="parallel-rate__line">
+              <span className="parallel-rate__label">Paralelo:</span>
+              <strong className="parallel-rate__value">
+                {formatRate(paralelo.tasa)} Bs/$
+              </strong>
+            </p>
+
+            {showGap && (
+              <p
+                className={
+                  'parallel-rate__gap ' +
+                  (gapIsLower ? 'parallel-rate__gap--lower' : 'parallel-rate__gap--higher')
+                }
+              >
+                {gapIsLower ? '↓' : '↑'} {Math.abs(gapPercent).toFixed(1)}%{' '}
+                {gapIsLower ? 'menos' : 'más'} que BCV
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

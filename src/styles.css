@@ -36,7 +36,7 @@
                                      (subido desde #3498DB para legibilidad en oscuro)
                                      Contraste vs --color-bg: 7.1:1 → AAA ✅ */
 
-  --color-accent: #F5B041;        /* Naranja brillante — Binance (Fase 2)
+  --color-accent: #F5B041;        /* Naranja brillante — alertas / brecha paralela
                                      Contraste vs --color-bg: 9.8:1 → AAA ✅ */
 
   --color-error: #FF6B6B;         /* Rojo brillante — errores
@@ -719,6 +719,53 @@ input:focus-visible {
 
 .result-display__validity--future {
   color: var(--color-accent);
+}
+
+.parallel-rate,
+.parallel-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.parallel-rate__line,
+.parallel-result__line {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.parallel-rate__label,
+.parallel-result__label,
+.parallel-result__rate {
+  font-size: var(--font-size-help);
+  color: var(--color-text-soft);
+}
+
+.parallel-rate__value,
+.parallel-result__value {
+  font-family: var(--font-family-numbers);
+  font-size: 20px;
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0;
+}
+
+.parallel-rate__gap {
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+}
+
+.parallel-rate__gap--lower {
+  color: #2ECC71;
+}
+
+.parallel-rate__gap--higher {
+  color: #F39C12;
 }
 
 /* Variante info: card de tasa al abrir la app (más sobrio que --success) */

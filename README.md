@@ -1,163 +1,120 @@
-# 💵 ¿Cuánto es en Dólares?
+# ¿Cuánto es en Dólares?
 
-> Web App ultra-simple que convierte **bolívares a dólares** en tiempo real,
-> usando la tasa oficial del BCV. Diseñada para **adultos mayores venezolanos**.
+Calculadora web simple para convertir bolívares ↔ dólares usando la tasa oficial del BCV, con la tasa paralela como referencia visual. Está pensada para adultos mayores venezolanos: texto grande, flujo corto, sin login y sin tecnicismos.
 
-[![Status](https://img.shields.io/badge/status-MVP-yellow)](#)
+[![Status](https://img.shields.io/badge/status-v0.6.0-green)](#)
 [![Stack](https://img.shields.io/badge/stack-React%2018%20%2B%20Vite%206-blue)](#)
 [![PWA](https://img.shields.io/badge/PWA-ready-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
----
+## Demo
 
-## 🎯 El problema
+Producción: https://cuantoeseldolares.netlify.app
 
-> _"Hijo, me dijeron 1.500.000 bolívares. ¿Eso es mucho o poco?"_
+## Qué hace
 
-En Venezuela los precios están en bolívares que cambian cada día. Las personas
-mayores **no saben cuánto están gastando realmente** en términos de dólares.
-Esta app responde esa pregunta con un solo botón.
+- Convierte bolívares a dólares con la tasa BCV oficial.
+- Convierte dólares a bolívares con la tasa BCV oficial.
+- Calcula automáticamente mientras escribes.
+- Acepta montos grandes y decimales en formato venezolano: `12.058,55`.
+- Incluye chips rápidos para montos comunes.
+- Muestra la tasa BCV al abrir la app.
+- Muestra tasa paralela y brecha contra BCV como referencia.
+- En cada cálculo muestra el resultado principal con BCV y una comparación "Con paralelo".
+- Incluye modo "Otra tasa" para calcular con una tasa manual.
+- Protege contra usar tasas futuras publicadas antes de que estén vigentes.
+- Funciona como PWA instalable.
 
-## ✨ La solución
+La app siempre calcula con BCV en los modos principales. La tasa paralela es solo informativa. Si alguien quiere usar otra tasa para calcular, usa el modo "Otra tasa".
 
-1. Escribes el monto en bolívares: `1.500.000`
-2. Tocas **CALCULAR**
-3. Ves el resultado: **$2,895.97**
+## API
 
-Eso es todo. Sin login, sin opciones, sin tecnicismos.
+La app usa [ve.dolarapi.com](https://ve.dolarapi.com), sin API key y sin proxy:
 
-## 📱 Demo en vivo
+- Principal: `GET https://ve.dolarapi.com/v1/dolares`
+- Fallback: `GET https://ve.dolarapi.com/v1/dolares/oficial`
+- Fallback legado: `https://bcvapi.tech/api/v1/dolar`
 
-🚧 _Próximamente en Netlify_ — instalable como PWA en cualquier teléfono.
+El caché local usa `bcv-rate-cache-v2` con duración de 30 minutos. No hay variables privadas ni API keys en el bundle.
 
-## 📸 Capturas
+## Correr localmente
 
-> Coloca capturas en `docs/screenshots/` y enlázalas desde aquí.
+Requisitos:
 
-```
-docs/screenshots/
-├── main.png          ← Pantalla principal
-├── result.png        ← Resultado de conversión
-└── error.png         ← Estado sin internet
-```
+- Node 20+
+- npm
 
----
-
-## 🚀 Para correrlo localmente
-
-### Requisitos
-- Node 20+ y npm
-
-### Pasos
 ```bash
-git clone <tu-url-del-repo>
+git clone https://github.com/sasuros/cuanto-es-en-dolares.git
 cd cuanto-es-en-dolares
 npm install
-cp .env.example .env.local
-# Edita .env.local y agrega tu API key de bcvapi.tech
 npm run dev
 ```
 
-Abre [http://localhost:5173](http://localhost:5173)
+Abre http://localhost:5173
 
-### Obtener API Key
-1. Registrarse gratis en [bcvapi.tech](https://www.bcvapi.tech/)
-2. Copiar el key del dashboard
-3. Pegar en `.env.local`:
-   ```
-   VITE_BCV_API_KEY=tu_api_key_aqui
-   VITE_BCV_API_URL=/api/bcv
-   ```
+No hace falta `.env.local`.
 
----
+## Stack
 
-## 🏗️ Stack técnico
+| Capa | Tecnología |
+|---|---|
+| Frontend | React 18 + Vite 6 |
+| Estilos | CSS puro |
+| PWA | vite-plugin-pwa + Workbox |
+| API tasas | ve.dolarapi.com |
+| Hosting | Netlify |
 
-| Capa | Tecnología | Por qué |
-|---|---|---|
-| Frontend | **React 18** + **Vite 6** | Build rápido, HMR instantáneo |
-| Estilos | **CSS puro** | Sin Tailwind ni frameworks — control total |
-| PWA | **vite-plugin-pwa** + Workbox | Offline-first, caché inteligente |
-| Hosting | **Netlify** | Gratis, proxy para CORS, deploy automático |
-| API tasa | [bcvapi.tech](https://www.bcvapi.tech/) | Plan gratuito 50 consultas/mes |
+## Estructura
 
-## 🎨 Principios de diseño
-
-Esta app es **diferente** a cualquier app que hayas visto. Está hecha para
-quienes no usan apps complicadas. Reglas estrictas:
-
-- ✅ Texto **gigante** (18px base, 56–72px resultado)
-- ✅ Botones de mínimo **60px** de altura
-- ✅ Modo oscuro con contraste **WCAG AAA**
-- ✅ Lenguaje cotidiano (sin "procesar", sin "API")
-- ✅ Máximo **2 pasos** para cualquier acción
-- ✅ Feedback claro: loading, éxito, error en español sencillo
-
-## 🧠 Decisiones inteligentes
-
-- **Caché de 10 minutos**: la cuota de 50 consultas/mes alcanza para uso normal
-- **Fallback a caché viejo**: si no hay internet, muestra la última tasa conocida
-- **Proxy CORS**: la API key vive solo en el server (Vite dev + Netlify prod)
-- **Sin login**: una app así no debe pedir cuenta para usarse
-- **PWA instalable**: se guarda en pantalla de inicio como una app nativa
-
----
-
-## 📁 Estructura
-
-```
+```text
 cuanto-es-en-dolares/
-├── docs/                          # Documentación del proyecto
-│   ├── CUANTO-ES-EN-DOLARES-MAESTRO.md
+├── docs/
 │   ├── BITACORA-CUANTO-ES-EN-DOLARES.md
-│   └── README.md                  # README extendido (técnico)
+│   ├── CUANTO-ES-EN-DOLARES-MAESTRO.md
+│   └── README.md
 ├── public/
-│   ├── favicon.svg                # Ícono PWA
+│   ├── favicon.svg
 │   └── icon.svg
 ├── src/
 │   ├── components/
-│   │   ├── CalculatorInput.jsx    # Input + botón CALCULAR
-│   │   └── ResultDisplay.jsx      # 3 estados: success / loading / error
+│   │   ├── CalculatorInput.jsx
+│   │   ├── InitialRateCard.jsx
+│   │   ├── ModeSelector.jsx
+│   │   └── ResultDisplay.jsx
 │   ├── services/
-│   │   └── apiService.js          # fetch BCV + caché + manejo de errores
+│   │   └── apiService.js
 │   ├── utils/
-│   │   └── formatters.js          # Bs, USD, tiempo relativo
+│   │   └── formatters.js
 │   ├── App.jsx
 │   ├── main.jsx
-│   └── styles.css                 # Variables, modo oscuro, componentes
-├── netlify.toml                   # Proxy CORS + SPA fallback + headers
-├── vite.config.js                 # Vite + PWA + proxy dev
+│   └── styles.css
+├── netlify.toml
+├── vite.config.js
 └── package.json
 ```
 
----
+## Roadmap real
 
-## 🗺️ Roadmap
+- [x] v0.1.0: MVP Bs → USD con tasa BCV.
+- [x] v0.2.0: Conversión bidireccional Bs ↔ USD.
+- [x] v0.3.0: Tasa visible al abrir.
+- [x] v0.4.0: Rediseño para uso diario, chips rápidos y mejor UX.
+- [x] v0.4.1: Protección contra tasa futura.
+- [x] v0.4.2: Modo "Otra tasa" y decimales en bolívares.
+- [x] v0.5.0: Migración a DolarAPI gratuita y eliminación de Netlify Function.
+- [x] v0.6.0: Tasa paralela, brecha BCV vs paralelo y docs actualizados.
+- [ ] v0.7.0: Historial local de conversiones.
+- [ ] Futuro: OCR de facturas, tendencias, alertas y utilidades.
 
-- [x] **Fase 1: MVP Ultra Simple** — Conversión Bs → USD con tasa BCV
-- [ ] **Fase 2: BCV vs Binance** — Mostrar ambas tasas
-- [ ] **Fase 3: Foto de factura (OCR)** — Tesseract.js para evitar tipear
-- [ ] **Fase 4: Utilidades** — Historial, conversión inversa, compartir
-- [ ] **Fase 5: Avanzado** — Múltiples monedas, gráficos, alertas
+## Principios de diseño
 
-Ver [docs/CUANTO-ES-EN-DOLARES-MAESTRO.md](docs/CUANTO-ES-EN-DOLARES-MAESTRO.md)
-para el roadmap detallado y la visión completa.
+- Texto grande y alto contraste.
+- Acciones visibles y pocas decisiones.
+- Lenguaje cotidiano.
+- Resultado principal claro; referencias secundarias discretas.
+- Sin login, sin configuración, sin claves.
 
----
+## Licencia
 
-## 🤝 Contribuir
-
-Por ahora es un proyecto personal. Si tienes una mamá venezolana que la usa y
-encuentra un problema, abre un issue. Las reglas:
-
-- Mantén la simplicidad
-- Piensa en adultos mayores
-- Si dudas, pregúntale a una persona mayor
-
-## 📄 Licencia
-
-[MIT](LICENSE) — úsalo libremente. Si ayuda a alguien, eso es lo que importa.
-
----
-
-**Hecho con ❤️ para las mamás venezolanas que merecen entender su economía.**
+[MIT](LICENSE)

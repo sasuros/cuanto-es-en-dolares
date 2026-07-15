@@ -1,6 +1,6 @@
 # 💵 ¿CUÁNTO ES EN DÓLARES? - DOCUMENTO MAESTRO
 
-**Proyecto:** Calculadora de conversión Bs → USD/USDT para adultos mayores  
+**Proyecto:** Calculadora de conversión Bs ↔ USD para adultos mayores  
 **Cliente:** Sasuros / Scanleads  
 **Inicio:** 17 mayo 2026  
 **Objetivo:** Ayudar a personas mayores a entender cuánto están gastando realmente en una economía dolarizada
@@ -12,7 +12,7 @@
 **Situación actual:**
 - Venezuela opera con precios en bolívares que cambian diariamente
 - Personas mayores no saben cuánto están gastando en términos reales (dólares)
-- Brecha entre tasa BCV oficial (~518 Bs/USD) y mercado P2P Binance (~693 Bs/USD)
+- Brecha entre tasa BCV oficial y tasa paralela de referencia
 - Necesitan saber: "¿Estos 1.5 millones de bolívares son mucho o poco?"
 
 **Usuario objetivo:**
@@ -35,10 +35,10 @@
 4. Actualizaciones automáticas
 5. Puede funcionar sin internet (última tasa guardada)
 
-**Stack tecnológico inicial:**
+**Stack tecnológico actual:**
 - Frontend: React (interfaz simple)
 - Hosting: Netlify (gratis, rápido)
-- APIs: bcvapi.tech + servicio tercero para Binance
+- API: ve.dolarapi.com (BCV oficial + paralelo, sin API key)
 - OCR (Fase 3): Tesseract.js
 
 ---
@@ -49,13 +49,17 @@
 
 **Objetivo:** App funcional en 24-48 horas → **Logrado en ~9 horas totales**
 
-**Funcionalidades entregadas (5 versiones, v0.1.0 → v0.3.0):**
+**Funcionalidades entregadas (v0.1.0 → v0.6.0):**
 - ✅ Input manual de monto con formato venezolano (1.500.000)
-- ✅ Botón grande "CALCULAR" (80px de alto)
+- ✅ Auto-cálculo con debounce, sin botón extra
 - ✅ Resultado en USD GIGANTE (56px / 72px en desktop)
-- ✅ Conversión bidireccional Bs↔USD con toggle "Cambiar a..." (v0.2.0+)
+- ✅ Conversión bidireccional Bs↔USD con selector de modo
+- ✅ Modo "Otra tasa" para tasa personalizada
+- ✅ Quick chips de montos comunes
 - ✅ Indicador de vigencia: ✅ HOY / ⚠️ desde mañana (v0.2.2)
 - ✅ Tasa visible al abrir, sin calcular (v0.3.0)
+- ✅ Tasa paralela como referencia + brecha porcentual (v0.6.0)
+- ✅ Resultado alternativo "Con paralelo" después de calcular (v0.6.0)
 - ✅ Modo oscuro WCAG AAA
 - ✅ PWA instalable, offline-first
 - ✅ Responsive (móvil primero)
@@ -66,56 +70,58 @@
 - ✅ Funciona en cualquier teléfono (testeada en iOS + escritorio)
 
 **API actual:**
-- bcvapi.tech (plan gratuito: 50 consultas/mes)
-- Cuota estimada con caché compartido CDN: ~25/mes ✅
+- ve.dolarapi.com (gratis, sin API key, sin límites declarados)
+- Endpoint principal: `https://ve.dolarapi.com/v1/dolares`
+- Fallback: `https://ve.dolarapi.com/v1/dolares/oficial`
+- Caché local: `bcv-rate-cache-v2` por 30 minutos ✅
 
 **Arquitectura final en producción:**
 ```
 /src
   /components
     CalculatorInput.jsx     # Input bidireccional + toggle "Cambiar a..."
+    ModeSelector.jsx        # Selector Bs / USD / Otra tasa
     ResultDisplay.jsx       # Resultado del cálculo (3 estados)
-    InitialRateCard.jsx     # Tasa visible al abrir (v0.3.0)
+    InitialRateCard.jsx     # Tasa BCV + paralelo visible al abrir
   /services
-    apiService.js           # fetchBCVRate + caché + manejo de errores
+    apiService.js           # fetch BCV/paralelo + caché + manejo de errores
   /utils
     formatters.js           # Bs, USD, tasa, vigencia, tiempo relativo
   App.jsx, main.jsx, styles.css
-/netlify
-  /functions
-    bcv-rate.mjs            # Proxy server-side (oculta API key)
+netlify.toml                # SPA fallback + headers
 ```
 
 **URL en producción:** https://cuantoeseldolares.netlify.app
 
 ---
 
-### **FASE 2: COMPARACIÓN BCV vs BINANCE** (Después de Fase 1)
+### **FASE 2: COMPARACIÓN BCV vs PARALELO** ✅ **COMPLETADA (v0.6.0)**
 
-**Nuevas funcionalidades:**
-- Mostrar DOS tasas: BCV oficial + Binance P2P
-- Explicar diferencia con lenguaje simple:
-  - "Según el banco (BCV)"
-  - "En el mercado real (Binance)"
-- Mostrar % de diferencia
+**Funcionalidades entregadas:**
+- ✅ Mostrar DOS tasas: BCV oficial + paralelo.
+- ✅ Brecha porcentual BCV vs paralelo.
+- ✅ Color verde si paralelo es menor que BCV.
+- ✅ Color naranja si paralelo es mayor que BCV.
+- ✅ Resultado alternativo "Con paralelo" después de calcular.
+- ✅ Degradación elegante si paralelo no está disponible.
+- ✅ Sin selector nuevo: BCV sigue siendo la tasa principal; "Otra tasa" cubre uso manual.
 
-**APIs adicionales:**
-- Servicio para tasa Binance (a investigar: usdt.com.ve, exchangemonitor.net)
+**API usada:**
+- `https://ve.dolarapi.com/v1/dolares`
+- Devuelve oficial + paralelo en una sola llamada.
 
 **Diseño propuesto:**
 ```
 INGRESASTE: 1.500.000 Bs
 ━━━━━━━━━━━━━━━━━━━━━━━━
-🏦 SEGÚN EL BANCO (BCV):
-   $2,897 dólares
+BCV oficial:
+   723,99 Bs/$
 
-💰 EN EL MERCADO REAL:
-   $2,163 dólares (Binance)
+Paralelo:
+   822,36 Bs/$
    
-⚠️ Diferencia: 33.9%
+Brecha: ↑ 13.6% más que BCV
 ━━━━━━━━━━━━━━━━━━━━━━━━
-La tasa del mercado es más alta porque 
-refleja la realidad de la calle.
 ```
 
 ---
@@ -153,7 +159,7 @@ refleja la realidad de la calle.
 
 **Funcionalidades extras:**
 - 📊 Historial de conversiones (últimas 10)
-- 🔄 Conversión inversa (USD → Bs)
+- ✅ Conversión inversa (USD → Bs)
 - 📤 Compartir cálculo por WhatsApp
 - 🌙 Modo oscuro
 - ⏰ Indicador de última actualización de tasas
@@ -212,14 +218,13 @@ refleja la realidad de la calle.
 - **PWA:** Workbox (offline support)
 
 ### **APIs de tasas**
-- **BCV Oficial:** https://bcvapi.tech/api/v1/dolar
-  - Plan gratuito: 50 consultas/mes
-  - Requiere API Key (registro gratuito)
-  
-- **Binance USDT:** Por investigar
-  - Opción 1: usdt.com.ve (si tiene API pública)
-  - Opción 2: exchangemonitor.net
-  - Opción 3: Crear scraper propio (Fase 5)
+- **BCV + Paralelo:** https://ve.dolarapi.com/v1/dolares
+  - Gratis
+  - Sin API key
+  - Llamada directa desde frontend
+
+- **Fallback BCV:** https://ve.dolarapi.com/v1/dolares/oficial
+  - Se usa si el endpoint combinado falla
 
 ### **OCR (Fase 3)**
 - **Motor:** Tesseract.js
@@ -247,8 +252,8 @@ refleja la realidad de la calle.
 - ✅ Funciona en 3 tipos de teléfono diferentes
 
 ### **Fase 2:**
-- ✅ Usuario entiende diferencia BCV vs Binance
-- ✅ Actualización de tasas < 5 minutos
+- ✅ Usuario ve la diferencia BCV vs paralelo sin cambiar el flujo principal
+- ✅ Una llamada obtiene ambas tasas
 - ✅ Muestra % de diferencia correctamente
 
 ### **Fase 3:**
@@ -278,27 +283,31 @@ refleja la realidad de la calle.
 
 ---
 
-## 📁 ESTRUCTURA DE ARCHIVOS (Fase 1)
+## 📁 ESTRUCTURA DE ARCHIVOS (v0.6.0)
 
 ```
 cuanto-es-en-dolares/
+├── docs/
+│   ├── BITACORA-CUANTO-ES-EN-DOLARES.md
+│   ├── CUANTO-ES-EN-DOLARES-MAESTRO.md
+│   └── README.md
 ├── public/
-│   ├── manifest.json          # PWA config
-│   ├── icon-192.png
-│   └── icon-512.png
+│   ├── favicon.svg
+│   └── icon.svg
 ├── src/
 │   ├── components/
-│   │   ├── CalculatorInput.jsx
-│   │   ├── ResultDisplay.jsx
-│   │   └── LoadingSpinner.jsx
+│   │   ├── CalculatorInput.jsx    # Input, chips, modo custom
+│   │   ├── InitialRateCard.jsx    # BCV + paralelo al abrir
+│   │   ├── ModeSelector.jsx       # Bs / USD / Otra tasa
+│   │   └── ResultDisplay.jsx      # Resultado BCV + referencia paralela
 │   ├── services/
-│   │   └── apiService.js      # Llamadas a APIs
+│   │   └── apiService.js          # DolarAPI + caché + fallback
 │   ├── utils/
-│   │   └── formatters.js      # Formateo de números
+│   │   └── formatters.js          # Bs, USD, tasa, fechas y vigencia
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── styles.css
-├── .env.local                 # API Keys
+├── netlify.toml                   # SPA fallback + headers
 ├── vite.config.js
 ├── package.json
 └── README.md
@@ -309,13 +318,13 @@ cuanto-es-en-dolares/
 ## 🔐 CONSIDERACIONES DE SEGURIDAD
 
 1. **API Keys:**
-   - Nunca exponerlas en frontend
-   - Usar variables de entorno
-   - Considerar proxy simple si necesario
+   - La versión actual no requiere API keys.
+   - No hay variables privadas en `.env`.
+   - El bundle se verifica para evitar secretos accidentales.
 
 2. **Límites de uso:**
-   - Caché de tasas (no consultar en cada carga)
-   - Actualizar cada 5-10 minutos máximo
+   - Caché de tasas por 30 minutos.
+   - Una sola llamada obtiene BCV + paralelo.
    - Guardar última tasa en localStorage
 
 3. **Privacidad:**
@@ -330,7 +339,7 @@ cuanto-es-en-dolares/
 > Ver detalle completo en [`BITACORA-CUANTO-ES-EN-DOLARES.md`](./BITACORA-CUANTO-ES-EN-DOLARES.md).
 
 ### **17 Mayo 2026** — Día 1
-- ✅ Investigación de APIs (BCV, Binance)
+- ✅ Investigación de APIs (BCV, paralelo/Binance)
 - ✅ Análisis de tecnologías OCR
 - ✅ Definición de roadmap
 - ✅ Creación de documento maestro
@@ -352,20 +361,36 @@ cuanto-es-en-dolares/
 - 🏷️ **v0.2.2** — Indicador de vigencia (✅ HOY / ⚠️ desde mañana)
 - 🏷️ **v0.3.0** — InitialRateCard: tasa visible al abrir la app
 
+### **14 Julio 2026** — Sprint 1 — Reactivación
+- 🛑 bcvapi.tech agotó cuota gratuita y dejó a la app con tasa vieja
+- ✅ Migración a ve.dolarapi.com
+- ✅ Eliminación de Netlify Function y proxy de Vite
+- ✅ Caché v2 de 30 minutos
+- ✅ Build verificado sin API keys
+- 🏷️ **v0.5.0** — DolarAPI gratuita en producción
+
+### **14 Julio 2026** — Sprint 2 — Tasa paralela
+- ✅ Endpoint combinado `/v1/dolares` para BCV + paralelo
+- ✅ Brecha BCV vs paralelo
+- ✅ Resultado alternativo "Con paralelo"
+- ✅ Documentación actualizada
+- 🏷️ **v0.6.0** — Fase 2 completada
+
 ### **Estado actual**
-- 🛑 Desarrollo **PAUSADO** esperando feedback real de v0.3.0
-- 📊 5 versiones publicadas, 0 bugs reportados, ~25 consultas/mes a la API
-- 📦 Bundle 50 KB gzipped, carga sub-2s en 4G
+- ✅ App activa en producción con BCV + paralelo
+- ✅ Fase 2 completada
+- 📦 Bundle liviano, carga sub-2s en 4G
+- 🔎 Siguiente foco: validar uso diario antes de agregar features grandes
 
 ---
 
 ## 🎯 PRÓXIMOS PASOS INMEDIATOS
 
-> **Modo VALIDACIÓN, no desarrollo.** No se agregan features hasta tener
-> feedback concreto de v0.3.0 usada en la rutina diaria.
+> **Modo VALIDACIÓN, no expansión.** La app ya cubre BCV, paralelo y tasa custom.
+> Antes de agregar OCR o historial, conviene observar uso real.
 
 1. **Validación con usuario real:**
-   - Mamá usa v0.3.0 varios días en su rutina normal
+   - Mamá usa v0.6.0 varios días en su rutina normal
    - Observar QUÉ no entiende, QUÉ duda, QUÉ confunde
    - Anotar todo, sin filtrar
 
@@ -379,9 +404,9 @@ cuanto-es-en-dolares/
    - Subir a `docs/screenshots/` y enlazar desde el README
 
 4. **Decisión post-feedback:**
-   - Si surge un caso de uso validado → v0.3.x o v0.4.0
-   - Si todo fluye → empezar Fase 2 (BCV vs Binance)
-   - Si hay confusión → simplificar antes de añadir nada nuevo
+   - Si piden repetir cálculos → historial local
+   - Si tipear sigue siendo fricción → OCR de facturas
+   - Si hay confusión con paralelo → ajustar copy antes de agregar más features
 
 ---
 
@@ -397,8 +422,7 @@ cuanto-es-en-dolares/
 ## 📞 RECURSOS Y CONTACTOS
 
 **APIs:**
-- BCV API: https://www.bcvapi.tech/
-- Support: contacto@adsyssistemas.com
+- DolarAPI Venezuela: https://ve.dolarapi.com
 
 **Comunidad:**
 - GitHub Issues (para bugs)
@@ -410,7 +434,7 @@ cuanto-es-en-dolares/
 
 ---
 
-**Última actualización:** 20 mayo 2026
-**Versión del documento:** 2.0 (post Fase 1 en producción)
-**Versión de la app en producción:** v0.3.0
+**Última actualización:** 14 julio 2026
+**Versión del documento:** 3.0 (post Fase 2 en producción)
+**Versión de la app en producción:** v0.6.0
 **Mantenido por:** Sasuros / Scanleads

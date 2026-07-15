@@ -6,6 +6,63 @@
 
 ---
 
+## 📅 JULIO 2026
+
+### **Martes 14 - Sprint 1: Reactivación (v0.5.0)**
+
+#### ✅ COMPLETADO
+
+**Problema detectado:**
+- bcvapi.tech agotó la cuota gratuita de 50 consultas/mes.
+- La app seguía mostrando una tasa vieja (~530 Bs/USD) mientras la tasa vigente rondaba ~724 Bs/USD.
+- La dependencia de API key + Netlify Function ya no era sostenible para una app de uso diario.
+
+**Migración de API:**
+- ✅ API principal migrada a `https://ve.dolarapi.com/v1/dolares/oficial`.
+- ✅ Fetch directo desde el frontend, sin proxy y sin API key.
+- ✅ Fallback legado a `bcvapi.tech` si DolarAPI falla.
+- ✅ Parser adaptado a `fechaActualizacion` ISO 8601.
+- ✅ Protección contra tasa futura mantenida.
+
+**Arquitectura simplificada:**
+- ✅ Eliminada `netlify/functions/bcv-rate.mjs`.
+- ✅ `netlify.toml` simplificado a build + SPA fallback + headers.
+- ✅ Proxy de Vite eliminado.
+- ✅ `.env.example` ya no pide `BCV_API_KEY`.
+- ✅ Caché `bcv-rate-cache-v2` con TTL de 30 minutos.
+- ✅ Limpieza automática de keys obsoletas del localStorage.
+
+**Validación:**
+- ✅ Build exitoso.
+- ✅ Bundle verificado con 0 API keys.
+- ✅ Producción deployada y usando DolarAPI.
+
+### **Martes 14 - Sprint 2: Tasa Paralela (v0.6.0)**
+
+#### ✅ COMPLETADO
+
+**Nueva fuente de datos:**
+- ✅ Endpoint principal actualizado a `https://ve.dolarapi.com/v1/dolares`.
+- ✅ Una sola llamada obtiene BCV oficial + paralelo.
+- ✅ Si la tasa paralela no viene disponible, la app degrada a solo BCV sin romper.
+- ✅ Fallback a `/v1/dolares/oficial` para mantener cálculos con BCV.
+
+**UI complementaria:**
+- ✅ `InitialRateCard` muestra tasa paralela como referencia secundaria.
+- ✅ Brecha BCV vs paralelo calculada automáticamente:
+  - Verde cuando paralelo < BCV.
+  - Naranja cuando paralelo > BCV.
+- ✅ `ResultDisplay` muestra resultado alternativo "Con paralelo" después de calcular.
+- ✅ Modo "Otra tasa" no muestra comparación paralela.
+- ✅ Los cálculos principales siguen usando BCV siempre.
+
+**Documentación:**
+- ✅ README raíz reescrito para v0.6.0.
+- ✅ Documento maestro actualizado: Fase 2 completada.
+- ✅ Bitácora actualizada con Sprints 1 y 2.
+
+---
+
 ## 📅 MAYO 2026
 
 ### **Sábado 17 - Día 1: Investigación y Planificación**

@@ -17,6 +17,7 @@ export default function App() {
 
   // Tasa inicial (visible al abrir la app)
   const [initialRate, setInitialRate] = useState(null)
+  const [paraleloRate, setParaleloRate] = useState(null)
   const [initialRateLoading, setInitialRateLoading] = useState(true)
   const [initialRateError, setInitialRateError] = useState(null)
 
@@ -29,7 +30,10 @@ export default function App() {
 
     fetchBCVRateForCalculation()
       .then(rate => {
-        if (!cancelled) setInitialRate(rate)
+        if (!cancelled) {
+          setInitialRate(rate)
+          setParaleloRate(rate.paralelo || null)
+        }
       })
       .catch(err => {
         if (cancelled) return
@@ -81,6 +85,7 @@ export default function App() {
         converted,
         tasa: rate.tasa,
         fecha: rate.fecha,
+        paralelo: rate.paralelo || null,
         fetchedAt: rate.fetchedAt,
         fromCache: rate.fromCache,
         stale: rate.stale,
@@ -91,6 +96,7 @@ export default function App() {
 
       // Sincronizamos initialRate con la tasa más reciente
       setInitialRate(rate)
+      setParaleloRate(rate.paralelo || null)
       setInitialRateError(null)
     } catch (err) {
       console.error('[App] Error al consultar tasa:', err)
@@ -160,11 +166,13 @@ export default function App() {
             result={result}
             loading={loading}
             error={error}
+            paralelo={paraleloRate}
             mode={mode}
           />
         ) : (
           <InitialRateCard
             rate={initialRate}
+            paralelo={paraleloRate}
             loading={initialRateLoading}
             error={initialRateError}
           />

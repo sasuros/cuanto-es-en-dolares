@@ -3,7 +3,8 @@
  *
  * Arquitectura:
  *   - El cliente llama directo a ve.dolarapi.com (sin API key).
- *   - Si DolarAPI falla, intenta bcvapi.tech como fallback legado.
+ *   - Pide BCV + paralelo en una sola llamada.
+ *   - Si falla, degrada a BCV oficial sin paralelo.
  *
  * Caché en cliente:
  *   - localStorage con TTL de 30 minutos.
@@ -14,7 +15,8 @@
 
 import { getRateValidity } from '../utils/formatters'
 
-const DOLAR_API_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
+const DOLAR_API_URL = 'https://ve.dolarapi.com/v1/dolares'
+const DOLAR_API_OFICIAL_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
 const BCVAPI_FALLBACK_URL = 'https://bcvapi.tech/api/v1/dolar'
 const CACHE_KEY = 'bcv-rate-cache-v2'
 const LAST_VALID_KEY = 'bcv-rate-last-valid-v2'  // caché de la última tasa con validity != 'future'
@@ -29,35 +31,62 @@ const FETCH_TIMEOUT_MS = 8000
  * Devuelve la tasa BCV. Usa caché si está fresca; si no, consulta el endpoint.
  * Si la red falla y hay caché viejo, lo devuelve marcado como stale.
  *
- * @returns {Promise<{tasa: number, fecha: string, fuente?: string, fetchedAt: number, fromCache: boolean, stale?: boolean}>}
+ * @returns {Promise<{tasa: number, fecha: string, fuente?: string, paralelo?: object, fetchedAt: number, fromCache: boolean, stale?: boolean}>}
  */
 export async function fetchBCVRate({ forceRefresh = false } = {}) {
   const cached = readCache()
 
-  if (!forceRefresh && cached && isFresh(cached)) {
-    return { ...cached.data, fromCache: true }
+  if (!forceRefresh && cached && isFresh(cached) && isCurrentCacheShape(cached)) {
+    return { ...getBcvRateFromCache(cached), fromCache: true }
   }
 
   try {
-    const data = await fetchLatestRate()
-    writeCache(data)
-    return { ...data, fromCache: false }
+    const rates = await fetchRatesFromEndpoint()
+    writeCache(rates)
+    return { ...rates.bcv, paralelo: rates.paralelo, fromCache: false }
   } catch (networkError) {
     if (cached) {
-      return { ...cached.data, fromCache: true, stale: true }
+      return { ...getBcvRateFromCache(cached), fromCache: true, stale: true }
     }
     throw networkError
   }
 }
 
-async function fetchLatestRate() {
+export async function fetchRates({ forceRefresh = false } = {}) {
+  const cached = readCache()
+
+  if (!forceRefresh && cached && isFresh(cached) && isCurrentCacheShape(cached)) {
+    return { ...getRatesFromCache(cached), fromCache: true }
+  }
+
+  try {
+    const rates = await fetchRatesFromEndpoint()
+    writeCache(rates)
+    return { ...rates, fromCache: false }
+  } catch (networkError) {
+    if (cached) {
+      return { ...getRatesFromCache(cached), fromCache: true, stale: true }
+    }
+    throw networkError
+  }
+}
+
+async function fetchRatesFromEndpoint() {
   let primaryError
 
   try {
-    return await fetchDolarApiRate()
+    return await fetchDolarApiRates()
   } catch (err) {
     primaryError = err
-    console.warn('[apiService] DolarAPI falló, probando fallback bcvapi.tech:', err)
+    console.warn('[apiService] DolarAPI /v1/dolares falló, probando /oficial:', err)
+  }
+
+  try {
+    return await fetchDolarApiOfficialRate()
+  } catch (officialError) {
+    officialError.primaryError = primaryError
+    primaryError = officialError
+    console.warn('[apiService] DolarAPI /oficial falló, probando fallback bcvapi.tech:', officialError)
   }
 
   try {
@@ -68,18 +97,38 @@ async function fetchLatestRate() {
   }
 }
 
-async function fetchDolarApiRate() {
+async function fetchDolarApiRates() {
   const body = await fetchJson(DOLAR_API_URL)
 
-  if (typeof body?.promedio !== 'number' || !body?.fechaActualizacion) {
+  if (!Array.isArray(body)) {
     throw new ApiError('PARSE', 'Respuesta de DolarAPI no tiene los campos esperados')
   }
 
+  const oficial = body.find(rate => rate?.fuente === 'oficial')
+  const paralelo = body.find(rate => rate?.fuente === 'paralelo')
+
+  if (typeof oficial?.promedio !== 'number' || !oficial?.fechaActualizacion) {
+    throw new ApiError('PARSE', 'Respuesta de DolarAPI no incluye tasa oficial')
+  }
+
+  const fetchedAt = Date.now()
   return {
-    tasa: body.promedio,
-    fecha: body.fechaActualizacion,
-    fuente: 'DolarAPI',
-    fetchedAt: Date.now()
+    bcv: normalizeDolarApiRate(oficial, 'BCV oficial', fetchedAt),
+    paralelo: normalizeDolarApiRate(paralelo, 'Paralelo', fetchedAt)
+  }
+}
+
+async function fetchDolarApiOfficialRate() {
+  const body = await fetchJson(DOLAR_API_OFICIAL_URL)
+
+  if (typeof body?.promedio !== 'number' || !body?.fechaActualizacion) {
+    throw new ApiError('PARSE', 'Respuesta de DolarAPI oficial no tiene los campos esperados')
+  }
+
+  const fetchedAt = Date.now()
+  return {
+    bcv: normalizeDolarApiRate(body, 'BCV oficial', fetchedAt),
+    paralelo: null
   }
 }
 
@@ -91,10 +140,23 @@ async function fetchBcvApiFallbackRate() {
   }
 
   return {
-    tasa: body.tasa,
-    fecha: body.fecha,
-    fuente: body.fuente || 'bcvapi.tech',
-    fetchedAt: Date.now()
+    bcv: {
+      tasa: body.tasa,
+      fecha: body.fecha,
+      fuente: body.fuente || 'bcvapi.tech',
+      fetchedAt: Date.now()
+    },
+    paralelo: null
+  }
+}
+
+function normalizeDolarApiRate(rate, fallbackFuente, fetchedAt) {
+  if (!rate || typeof rate.promedio !== 'number' || !rate.fechaActualizacion) return null
+  return {
+    tasa: rate.promedio,
+    fecha: rate.fechaActualizacion,
+    fuente: fallbackFuente,
+    fetchedAt
   }
 }
 
@@ -163,7 +225,8 @@ function writeCache(data) {
     // v0.4.0: si la tasa es de HOY (o pasada — fin de semana, etc.), también
     // la guardamos como "última válida". Las tasas FUTURAS NO se copian aquí,
     // así que este slot siempre contiene la última tasa segura para cálculos.
-    const validity = getRateValidity(data.fecha)
+    const bcv = getBcvRateFromData(data)
+    const validity = getRateValidity(bcv?.fecha)
     if (validity !== 'future') {
       localStorage.setItem(LAST_VALID_KEY, entry)
     }
@@ -186,6 +249,25 @@ function readLastValidRate() {
 
 function isFresh(cached) {
   return (Date.now() - cached.savedAt) < CACHE_TTL_MS
+}
+
+function isCurrentCacheShape(cached) {
+  return Boolean(cached?.data?.bcv && cached.data.paralelo)
+}
+
+function getBcvRateFromData(data) {
+  return data?.bcv || data
+}
+
+function getRatesFromCache(cached) {
+  const bcv = getBcvRateFromData(cached.data)
+  const paralelo = cached.data?.paralelo || bcv?.paralelo || null
+  return { bcv, paralelo }
+}
+
+function getBcvRateFromCache(cached) {
+  const { bcv, paralelo } = getRatesFromCache(cached)
+  return { ...bcv, paralelo }
 }
 
 export function clearRateCache() {
@@ -241,8 +323,9 @@ export async function fetchBCVRateForCalculation(opts = {}) {
   const publishedFuture = { tasa: latest.tasa, fecha: latest.fecha }
 
   if (lastValid) {
+    const validRate = getBcvRateFromCache(lastValid)
     return {
-      ...lastValid.data,
+      ...validRate,
       fromCache: true,
       isFallbackFromFuture: true,
       publishedRateFuture: publishedFuture
