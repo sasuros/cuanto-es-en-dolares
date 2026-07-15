@@ -670,6 +670,187 @@ input:focus-visible {
 }
 
 /* ========================================
+   COMPONENTE: CameraCapture (v0.8.0)
+   OCR local para detectar TOTAL de facturas venezolanas.
+   ======================================== */
+.camera-capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.camera-capture__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.camera-capture__button {
+  width: 100%;
+  min-height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: transparent;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-help);
+  font-weight: var(--font-weight-bold);
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+}
+
+.camera-capture__button:hover:not(:disabled),
+.camera-capture__button:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-primary-readable);
+  background: var(--color-bg-elevated);
+}
+
+.camera-capture__button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.camera-capture__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.camera-capture__preload,
+.camera-capture__hint,
+.camera-capture__progress-text,
+.camera-capture__message {
+  font-size: var(--font-size-help);
+  color: var(--color-text-soft);
+  text-align: center;
+}
+
+.camera-capture__preload {
+  color: var(--color-text-dim);
+}
+
+.camera-capture--card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.camera-capture__title {
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.camera-capture__progress {
+  width: 100%;
+  height: 10px;
+  background: var(--color-surface);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-soft);
+}
+
+.camera-capture__progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.camera-capture__amount-input {
+  width: 100%;
+  min-height: 72px;
+  padding: 12px;
+  font-family: var(--font-family-numbers);
+  font-size: 34px;
+  font-weight: var(--font-weight-black);
+  text-align: center;
+  color: var(--color-primary-display);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-capture__amount-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-focus);
+}
+
+.camera-capture__confirm,
+.camera-capture__secondary,
+.camera-capture__manual {
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-help);
+  font-weight: var(--font-weight-bold);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.camera-capture__confirm {
+  background: var(--color-primary);
+  color: var(--color-active-text);
+}
+
+.camera-capture__secondary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.camera-capture__manual {
+  background: transparent;
+  color: var(--color-text-soft);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.camera-capture__confirm:hover:not(:disabled),
+.camera-capture__secondary:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.camera-capture__confirm:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.camera-capture__confirm:active:not(:disabled),
+.camera-capture__secondary:active:not(:disabled),
+.camera-capture__manual:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.camera-capture__tips {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-dim);
+  font-size: var(--font-size-help);
+  text-align: left;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.camera-capture__tips li::before {
+  content: "• ";
+  color: var(--color-primary-readable);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ========================================
    COMPONENTE: ResultDisplay
    ======================================== */
 .result-display {

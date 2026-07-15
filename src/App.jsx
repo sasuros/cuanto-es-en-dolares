@@ -45,6 +45,7 @@ export default function App() {
   const [paraleloRate, setParaleloRate] = useState(null)
   const [initialRateLoading, setInitialRateLoading] = useState(true)
   const [initialRateError, setInitialRateError] = useState(null)
+  const [ocrPreloadStatus, setOcrPreloadStatus] = useState('idle')
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -66,6 +67,24 @@ export default function App() {
 
     query.addEventListener?.('change', handleSystemThemeChange)
     return () => query.removeEventListener?.('change', handleSystemThemeChange)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    setOcrPreloadStatus('loading')
+    import('tesseract.js')
+      .then(async ({ createWorker }) => {
+        const worker = await createWorker('spa')
+        await worker.terminate()
+        if (!cancelled) setOcrPreloadStatus('ready')
+      })
+      .catch(err => {
+        console.warn('[App] No pudimos precargar el escáner OCR:', err)
+        if (!cancelled) setOcrPreloadStatus('error')
+      })
+
+    return () => { cancelled = true }
   }, [])
 
   // Fetch automático al montar (la única tasa que NO bloquea: si futura,
@@ -223,6 +242,7 @@ export default function App() {
           onCustomCalculate={handleCustomCalculate}
           onClear={handleClear}
           bcvRate={initialRate?.tasa || null}
+          ocrPreloadStatus={ocrPreloadStatus}
           disabled={loading}
         />
 
