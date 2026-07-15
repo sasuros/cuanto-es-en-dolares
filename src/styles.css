@@ -312,17 +312,16 @@ input:focus-visible {
 }
 
 .mode-selector__group {
-  display: flex;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
   background: var(--color-surface);
   border-radius: 12px;
   padding: 4px;
-  min-height: 80px;
   border: 1px solid var(--color-border-soft);
 }
 
 .mode-selector__option {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -674,6 +673,12 @@ input:focus-visible {
 .quick-chip:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+@media (min-width: 420px) {
+  .mode-selector__group {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 /* ========================================
@@ -1112,6 +1117,108 @@ input:focus-visible {
 /* Variante info: card de tasa al abrir la app (más sobrio que --success) */
 .result-display--info {
   border: 1px solid var(--color-border-soft);
+}
+
+.rate-dashboard {
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.rate-dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rate-dashboard__grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rate-dashboard__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.rate-pill {
+  min-width: 0;
+  min-height: 122px;
+  padding: 12px 10px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.rate-pill--usd {
+  border-color: var(--color-primary);
+}
+
+.rate-pill--eur {
+  border-color: #3498DB;
+}
+
+.rate-pill--parallel {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.rate-pill__label {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.8px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.rate-pill__value {
+  color: var(--color-text);
+  font-family: var(--font-family-numbers);
+  font-size: 24px;
+  font-weight: var(--font-weight-black);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.rate-pill--usd .rate-pill__value {
+  color: var(--color-primary-display);
+}
+
+.rate-pill--eur .rate-pill__value {
+  color: #3498DB;
+}
+
+.rate-pill__unit {
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+}
+
+.rate-pill__variation {
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+}
+
+.rate-pill__variation--higher {
+  color: var(--color-success);
+}
+
+.rate-pill__variation--lower {
+  color: var(--color-error);
 }
 
 .initial-rate-card__title {

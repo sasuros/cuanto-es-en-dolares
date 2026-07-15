@@ -7,24 +7,14 @@ import {
   parseUSDInput
 } from '../utils/formatters'
 
-/**
- * Input de cálculo. v0.4.2 soporta:
- *   - 'bs-to-usd' → un input Bs (ahora con decimales) + chips Bs
- *   - 'usd-to-bs' → un input USD + chips USD
- *   - 'custom'    → DOS inputs (monto + tasa), con sub-toggle Bs↔USD
- *
- * El modo 'custom' es bidireccional: el usuario elige si "tiene" Bs o $
- * y la tasa custom se aplica en la dirección que corresponde.
- */
-
 const DEBOUNCE_MS = 300
 
 const QUICK_CHIPS_BS = [500, 1000, 5000, 10000, 50000]
 const QUICK_CHIPS_USD = [1, 5, 10, 20, 50]
 const QUICK_CHIPS_USD_HIGH_RATE = [1, 5, 10, 20, 50, 100]
+const QUICK_CHIPS_EUR = [1, 5, 10, 20, 50, 100]
 const QUICK_CHIP_USD_EQUIVALENTS = [1, 5, 10, 20, 50]
 
-// Persistencias del modo custom
 const CUSTOM_RATE_KEY = 'custom-rate-last-used'
 const CUSTOM_DIRECTION_KEY = 'custom-direction-last-used'
 const CUSTOM_RATE_MIN = 1
@@ -50,7 +40,7 @@ function writeSavedCustomRate(value) {
 function readSavedCustomDirection() {
   try {
     const dir = localStorage.getItem(CUSTOM_DIRECTION_KEY)
-    return dir === 'usd' ? 'usd' : 'bs' // default: bs
+    return dir === 'usd' ? 'usd' : 'bs'
   } catch {
     return 'bs'
   }
@@ -60,13 +50,6 @@ function writeSavedCustomDirection(dir) {
   try { localStorage.setItem(CUSTOM_DIRECTION_KEY, dir) } catch {}
 }
 
-// v0.4.2.1: input Bs acepta decimales en formato es-VE (coma decimal,
-// punto miles). El input es CONTROLLED con valor formateado — el
-// formatter inserta puntos de miles, así que al recibir el siguiente
-// keystroke, debemos distinguir miles de decimal:
-//   - Si hay coma → la coma es el decimal (puntos = miles, los quitamos)
-//   - Si no hay coma y un punto está seguido de 3+ dígitos → miles
-//   - Si no hay coma y un punto está seguido de 0-2 dígitos → decimal en progreso
 function sanitizeBsInputDecimal(value) {
   let cleaned = value.replace(/[^\d.,]/g, '')
   if (!cleaned) return ''
@@ -74,27 +57,20 @@ function sanitizeBsInputDecimal(value) {
   const commaIdx = cleaned.indexOf(',')
 
   if (commaIdx !== -1) {
-    // Ya hay coma → ella es la decimal. Cualquier punto previo es miles.
     const intPart = cleaned.slice(0, commaIdx).replace(/\./g, '')
     const decPart = cleaned.slice(commaIdx + 1).replace(/[^\d]/g, '').slice(0, 2)
     return intPart + ',' + decPart
   }
 
-  // No hay coma. ¿Hay puntos?
   const lastDotIdx = cleaned.lastIndexOf('.')
-  if (lastDotIdx === -1) {
-    return cleaned // sólo dígitos, fácil
-  }
+  if (lastDotIdx === -1) return cleaned
 
   const afterLastDot = cleaned.slice(lastDotIdx + 1)
   if (afterLastDot.length <= 2 && !afterLastDot.includes('.')) {
-    // "1." o "1.5" o "12.58" — el usuario quiere decimal con punto.
-    // Convertimos el último punto en coma; el resto son miles.
     const intPart = cleaned.slice(0, lastDotIdx).replace(/\./g, '')
     return intPart + ',' + afterLastDot
   }
 
-  // "1.205", "12.058", "1.500.000" — todos los puntos son miles.
   return cleaned.replace(/\./g, '')
 }
 
@@ -142,11 +118,10 @@ export default function CalculatorInput({
   const tasaInputRef = useRef(null)
   const debounceRef = useRef(null)
 
-  const isBsMode = mode === 'bs-to-usd'
+  const isBsMode = mode === 'bs-to-usd' || mode === 'bs-to-eur'
   const isUsdMode = mode === 'usd-to-bs'
+  const isEurMode = mode === 'eur-to-bs'
   const isCustomMode = mode === 'custom'
-
-  // En custom mode, el "modo del amount input" depende del sub-toggle
   const customAmountIsBs = customDirection === 'bs'
 
   useEffect(() => {
@@ -159,7 +134,6 @@ export default function CalculatorInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
-  // Si cambia la dirección dentro de custom, limpiar amount también
   useEffect(() => {
     if (isCustomMode) {
       setRaw('')
@@ -178,11 +152,10 @@ export default function CalculatorInput({
     }
   }, [])
 
-  // Cálculo del valor formateado para mostrar en el input
   let formatted
   if (isBsMode) {
     formatted = formatBolivares(raw)
-  } else if (isUsdMode) {
+  } else if (isUsdMode || isEurMode) {
     formatted = formatUSDInput(raw)
   } else if (isCustomMode) {
     formatted = customAmountIsBs ? formatBolivares(raw) : formatUSDInput(raw)
@@ -231,13 +204,10 @@ export default function CalculatorInput({
 
   function handleChange(e) {
     const value = e.target.value
-    let cleaned
-    if (isUsdMode || (isCustomMode && !customAmountIsBs)) {
-      cleaned = sanitizeUsdInput(value)
-    } else {
-      // bs-to-usd O custom con dirección bs → ambos usan formato Bs con decimales
-      cleaned = sanitizeBsInputDecimal(value)
-    }
+    const cleaned = isUsdMode || isEurMode || (isCustomMode && !customAmountIsBs)
+      ? sanitizeUsdInput(value)
+      : sanitizeBsInputDecimal(value)
+
     setRaw(cleaned)
     scheduleCalculation(cleaned, customTasaRaw, customDirection)
   }
@@ -252,7 +222,6 @@ export default function CalculatorInput({
     if (newDirection === customDirection) return
     setCustomDirection(newDirection)
     writeSavedCustomDirection(newDirection)
-    // amount se limpia por el useEffect; resultado también
   }
 
   function handleClear() {
@@ -296,10 +265,10 @@ export default function CalculatorInput({
 
   function formatChipLabel(value) {
     if (isBsMode) return `${formatBolivares(value)} Bs`
+    if (isEurMode) return `€${value}`
     return `$${value}`
   }
 
-  // ====== Render: modo custom (dos inputs + sub-toggle Bs↔USD) ======
   if (isCustomMode) {
     return (
       <div className="calculator-input calculator-input--custom">
@@ -308,7 +277,7 @@ export default function CalculatorInput({
           <div
             className="custom-direction__group"
             role="radiogroup"
-            aria-label="Dirección de conversión con tasa custom"
+            aria-label="Direccion de conversion con tasa custom"
           >
             <button
               type="button"
@@ -409,10 +378,11 @@ export default function CalculatorInput({
     )
   }
 
-  // ====== Render: modos BCV (Bs o USD) — un input + chips ======
   const chips = isBsMode
     ? getDynamicBsChips(bcvRate)
-    : (Number(bcvRate) > 500 ? QUICK_CHIPS_USD_HIGH_RATE : QUICK_CHIPS_USD)
+    : isEurMode
+      ? QUICK_CHIPS_EUR
+      : (Number(bcvRate) > 500 ? QUICK_CHIPS_USD_HIGH_RATE : QUICK_CHIPS_USD)
 
   return (
     <div className="calculator-input">
@@ -430,7 +400,13 @@ export default function CalculatorInput({
           placeholder="0"
           value={formatted}
           onChange={handleChange}
-          aria-label={isBsMode ? 'Cantidad en bolívares' : 'Cantidad en dólares'}
+          aria-label={
+            isBsMode
+              ? 'Cantidad en bolívares'
+              : isEurMode
+                ? 'Cantidad en euros'
+                : 'Cantidad en dólares'
+          }
           aria-describedby="amount-currency"
           disabled={disabled}
         />
@@ -449,7 +425,7 @@ export default function CalculatorInput({
         )}
 
         <span id="amount-currency" className="calculator-input__currency">
-          {isBsMode ? 'Bs' : '$'}
+          {isBsMode ? 'Bs' : isEurMode ? '€' : '$'}
         </span>
       </div>
 

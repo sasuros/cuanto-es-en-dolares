@@ -7,21 +7,18 @@ import {
   getRateValidity
 } from '../utils/formatters'
 
-/**
- * Resultado de la conversión.
- *
- * Modos soportados:
- *   - 'bs-to-usd' → muestra "Son \$X por Y Bs"
- *   - 'usd-to-bs' → muestra "Son Y Bs por \$X"
- *   - 'custom'    → muestra resultado + tasa custom usada (no BCV)
- *
- * v0.4.1: si result.isFuture (la tasa BCV usada es para mañana),
- * mostramos un badge "Tasa de referencia" y permitimos calcular igual.
- */
-export default function ResultDisplay({ result, loading, error, paralelo, mode }) {
+const euroFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+})
+
+export default function ResultDisplay({ result, loading, error, mode }) {
   const [copied, setCopied] = useState(false)
+  const resultIsForeign = result ? getResultIsForeignCurrency(result, mode) : false
   const cleanCopyValue = result
-    ? getCleanCopyValue(result.converted, getResultIsInUsd(result, mode))
+    ? getCleanCopyValue(result.converted, resultIsForeign)
     : ''
 
   useEffect(() => {
@@ -48,12 +45,11 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
         <div className="result-display__spinner-placeholder" aria-hidden="true">
           ⏳
         </div>
-        <p className="result-display__loading-text">Buscando tasa actual…</p>
+        <p className="result-display__loading-text">Buscando tasa actual...</p>
       </div>
     )
   }
 
-  // v0.4.1 corregido: tasa futura sin caché válido → NO calcular, mostrar info
   if (error && typeof error === 'object' && error.type === 'no_valid_rate') {
     return (
       <div
@@ -62,14 +58,14 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
         aria-live="polite"
       >
         <p className="result-display__no-valid-icon" aria-hidden="true">⏰</p>
-        <p className="result-display__no-valid-title">Tasa no disponible aún</p>
+        <p className="result-display__no-valid-title">Tasa no disponible aun</p>
         <p className="result-display__no-valid-text">
-          El BCV publica la tasa del día después de las 4 PM.
+          El BCV publica la tasa del dia despues de las 4 PM.
         </p>
         {error.futureRate && (
           <div className="result-display__no-valid-future">
             <p className="result-display__no-valid-future-label">
-              ℹ️ Para mañana será:
+              Para manana sera:
             </p>
             <p className="result-display__no-valid-future-rate">
               {formatRate(error.futureRate.tasa)} <span>Bs/$</span>
@@ -77,14 +73,14 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
           </div>
         )}
         <p className="result-display__no-valid-cta">
-          Vuelve más tarde para calcular con la tasa vigente.
+          Vuelve mas tarde para calcular con la tasa vigente.
         </p>
       </div>
     )
   }
 
   if (error) {
-    const message = typeof error === 'string' ? error : (error?.message || 'Algo salió mal.')
+    const message = typeof error === 'string' ? error : (error?.message || 'Algo salio mal.')
     return (
       <div
         className="result-display result-display--error"
@@ -108,23 +104,24 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
     isFuture,
     isFallbackFromFuture,
     publishedRateFuture,
-    isCustomRate,
-    customDirection
+    paralelo,
+    currency = 'usd',
+    direction
   } = result
 
   const relativeTime = formatRelativeTime(fetchedAt)
-  const isBsToUsd = mode === 'bs-to-usd'
   const isCustomMode = mode === 'custom'
-  const resultIsInUsd = getResultIsInUsd(result, mode)
   const validity = getRateValidity(fecha)
-  const parallelRate = paralelo || result.paralelo || null
+  const unit = currency === 'eur' ? 'Bs/€' : 'Bs/$'
+  const currencyName = currency === 'eur' ? 'euro' : 'dolar'
+  const parallelRate = paralelo || null
   const showParallelResult =
     !isCustomMode &&
     parallelRate &&
     Number.isFinite(parallelRate.tasa) &&
     parallelRate.tasa > 0
   const convertedWithParallel = showParallelResult
-    ? (isBsToUsd ? amount / parallelRate.tasa : amount * parallelRate.tasa)
+    ? (direction === 'from-bs' ? amount / parallelRate.tasa : amount * parallelRate.tasa)
     : null
 
   return (
@@ -132,22 +129,22 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
       className="result-display result-display--success"
       role="region"
       aria-live="polite"
-      aria-label="Resultado de la conversión"
+      aria-label="Resultado de la conversion"
     >
       {isFuture && (
         <div className="result-display__future-badge" role="status">
           <span aria-hidden="true">⚠️</span>
-          <span>Tasa de referencia · vigente mañana</span>
+          <span>Tasa de referencia · vigente manana</span>
         </div>
       )}
 
       <p className="result-display__label">
-        {resultIsInUsd ? 'Son' : 'Necesitas'}
+        {resultIsForeign ? 'Son' : 'Necesitas'}
       </p>
 
       <p className="result-display__amount">
-        {resultIsInUsd
-          ? formatUSD(converted)
+        {resultIsForeign
+          ? formatForeignCurrency(converted, currency)
           : `${formatBolivares(converted)} Bs`}
       </p>
 
@@ -161,10 +158,10 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
       </button>
 
       <p className="result-display__bolivares">
-        {resultIsInUsd ? (
+        {resultIsForeign ? (
           <>por <strong>{formatBolivares(amount)} Bs</strong></>
         ) : (
-          <>por <strong>{formatUSD(amount)}</strong></>
+          <>por <strong>{formatForeignCurrency(amount, currency)}</strong></>
         )}
       </p>
 
@@ -179,7 +176,7 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
           </p>
         ) : (
           <p className="result-display__rate">
-            Tasa BCV: <strong>{formatRate(tasa)}</strong> Bs por dólar
+            Tasa BCV: <strong>{formatRate(tasa)}</strong> Bs por {currencyName}
           </p>
         )}
 
@@ -190,7 +187,7 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
         )}
         {!isCustomMode && validity === 'future' && (
           <p className="result-display__validity result-display__validity--future">
-            ⚠️ Vigente desde: mañana
+            ⚠️ Vigente desde: manana
           </p>
         )}
 
@@ -208,7 +205,7 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
 
         {isFallbackFromFuture && publishedRateFuture && (
           <p className="result-display__published-future">
-            ℹ️ BCV ya publicó la tasa de mañana:{' '}
+            BCV ya publico la tasa de manana:{' '}
             <strong>{formatRate(publishedRateFuture.tasa)}</strong> Bs/$
           </p>
         )}
@@ -222,13 +219,13 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
             <p className="parallel-result__line">
               <span className="parallel-result__label">Con paralelo:</span>
               <strong className="parallel-result__value">
-                {isBsToUsd
-                  ? formatUSD(convertedWithParallel)
+                {resultIsForeign
+                  ? formatForeignCurrency(convertedWithParallel, currency)
                   : `${formatBolivares(convertedWithParallel)} Bs`}
               </strong>
             </p>
             <p className="parallel-result__rate">
-              ({formatRate(parallelRate.tasa)} Bs/$)
+              ({formatRate(parallelRate.tasa)} {unit})
             </p>
           </div>
         </>
@@ -237,16 +234,21 @@ export default function ResultDisplay({ result, loading, error, paralelo, mode }
   )
 }
 
-function getResultIsInUsd(result, mode) {
-  return mode === 'custom' ? result.customDirection === 'bs' : mode === 'bs-to-usd'
+function getResultIsForeignCurrency(result, mode) {
+  if (mode === 'custom') return result.customDirection === 'bs'
+  return result.direction === 'from-bs'
 }
 
-function getCleanCopyValue(value, resultIsInUsd) {
+function formatForeignCurrency(value, currency) {
+  return currency === 'eur' ? euroFormatter.format(value) : formatUSD(value)
+}
+
+function getCleanCopyValue(value, resultIsForeign) {
   const numericValue = Number(value)
 
   if (!Number.isFinite(numericValue)) return ''
 
-  if (resultIsInUsd) {
+  if (resultIsForeign) {
     return numericValue.toFixed(2)
   }
 

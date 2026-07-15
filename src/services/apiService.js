@@ -1,59 +1,38 @@
-/**
- * Servicio para consultar la tasa BCV.
- *
- * Arquitectura:
- *   - El cliente llama directo a ve.dolarapi.com (sin API key).
- *   - Pide BCV + paralelo en una sola llamada.
- *   - Si falla, degrada a BCV oficial sin paralelo.
- *
- * Caché en cliente:
- *   - localStorage con TTL de 30 minutos.
- *
- * Fallback offline:
- *   - Si la red falla y hay caché aunque sea vieja, la devuelve marcada como stale.
- */
+import { getRateValidity } from '../utils/formatters.js'
 
-import { getRateValidity } from '../utils/formatters'
-
-const DOLAR_API_URL = 'https://ve.dolarapi.com/v1/dolares'
-const DOLAR_API_OFICIAL_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
+const DOLAR_API_USD_URL = 'https://ve.dolarapi.com/v1/dolares'
+const DOLAR_API_USD_OFICIAL_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
+const DOLAR_API_EUR_URL = 'https://ve.dolarapi.com/v1/euros'
 const BCVAPI_FALLBACK_URL = 'https://bcvapi.tech/api/v1/dolar'
-const CACHE_KEY = 'bcv-rate-cache-v2'
-const LAST_VALID_KEY = 'bcv-rate-last-valid-v2'  // caché de la última tasa con validity != 'future'
-const PREVIOUS_RATES_KEY = 'bcv-rate-previous-v1'
+
+const CACHE_KEY = 'rates-cache-v3'
+const LAST_VALID_KEY = 'rates-last-valid-v3'
+const PREVIOUS_RATES_KEY = 'rates-previous-v1'
 const OLD_CACHE_KEYS = [
   'bcv-rate-cache-v1',
-  'bcv-rate-last-valid-v1'
+  'bcv-rate-last-valid-v1',
+  'bcv-rate-cache-v2',
+  'bcv-rate-last-valid-v2',
+  'bcv-rate-previous-v1'
 ]
 const CACHE_TTL_MS = 30 * 60 * 1000
 const FETCH_TIMEOUT_MS = 8000
 
-/**
- * Devuelve la tasa BCV. Usa caché si está fresca; si no, consulta el endpoint.
- * Si la red falla y hay caché viejo, lo devuelve marcado como stale.
- *
- * @returns {Promise<{tasa: number, fecha: string, fuente?: string, paralelo?: object, fetchedAt: number, fromCache: boolean, stale?: boolean}>}
- */
 export async function fetchBCVRate({ forceRefresh = false } = {}) {
-  const cached = readCache()
-
-  if (!forceRefresh && cached && isFresh(cached) && isCurrentCacheShape(cached)) {
-    return { ...getBcvRateFromCache(cached), fromCache: true }
-  }
-
-  try {
-    const rates = await fetchRatesFromEndpoint()
-    writeCache(rates)
-    return { ...rates.bcv, paralelo: rates.paralelo, fromCache: false }
-  } catch (networkError) {
-    if (cached) {
-      return { ...getBcvRateFromCache(cached), fromCache: true, stale: true }
-    }
-    throw networkError
+  const rates = await fetchAllRates({ forceRefresh })
+  return {
+    ...rates.usd.bcv,
+    paralelo: rates.usd.paralelo || null,
+    fromCache: rates.fromCache,
+    stale: rates.stale
   }
 }
 
 export async function fetchRates({ forceRefresh = false } = {}) {
+  return fetchAllRates({ forceRefresh })
+}
+
+export async function fetchAllRates({ forceRefresh = false } = {}) {
   const cached = readCache()
 
   if (!forceRefresh && cached && isFresh(cached) && isCurrentCacheShape(cached)) {
@@ -61,25 +40,84 @@ export async function fetchRates({ forceRefresh = false } = {}) {
   }
 
   try {
-    const rates = await fetchRatesFromEndpoint()
+    const rates = await fetchAllRatesFromEndpoint()
     writeCache(rates)
     return { ...rates, fromCache: false }
   } catch (networkError) {
-    if (cached) {
+    if (cached && isCurrentCacheShape(cached)) {
       return { ...getRatesFromCache(cached), fromCache: true, stale: true }
     }
     throw networkError
   }
 }
 
-async function fetchRatesFromEndpoint() {
+export async function fetchBCVRateForCalculation(opts = {}) {
+  const rates = await fetchAllRatesForCalculation(opts)
+  return {
+    ...rates.usd.bcv,
+    paralelo: rates.usd.paralelo || null,
+    fromCache: rates.fromCache,
+    stale: rates.stale,
+    isFallbackFromFuture: rates.isFallbackFromFuture,
+    publishedRateFuture: rates.publishedRateFuture
+  }
+}
+
+export async function fetchAllRatesForCalculation(opts = {}) {
+  const latest = await fetchAllRates(opts)
+  const validity = getRateValidity(latest.usd?.bcv?.fecha)
+
+  if (validity !== 'future') {
+    return latest
+  }
+
+  const lastValid = readLastValidRate()
+  const publishedFuture = latest.usd?.bcv
+    ? { tasa: latest.usd.bcv.tasa, fecha: latest.usd.bcv.fecha }
+    : null
+
+  if (lastValid && isCurrentCacheShape(lastValid)) {
+    return {
+      ...getRatesFromCache(lastValid),
+      fromCache: true,
+      isFallbackFromFuture: true,
+      publishedRateFuture: publishedFuture
+    }
+  }
+
+  const err = new ApiError('NO_VALID_RATE', 'Aun no tenemos la tasa vigente de hoy')
+  err.publishedRateFuture = publishedFuture
+  throw err
+}
+
+async function fetchAllRatesFromEndpoint() {
+  const [usdResult, eurResult] = await Promise.allSettled([
+    fetchUsdRatesWithFallback(),
+    fetchCurrencyRates(DOLAR_API_EUR_URL, 'Euro BCV', 'Euro paralelo')
+  ])
+
+  if (usdResult.status === 'rejected') {
+    throw usdResult.reason
+  }
+
+  if (eurResult.status === 'rejected') {
+    console.warn('[apiService] DolarAPI euros fallo; seguimos solo con dolares:', eurResult.reason)
+  }
+
+  return {
+    usd: usdResult.value,
+    eur: eurResult.status === 'fulfilled' ? eurResult.value : null
+  }
+}
+
+async function fetchUsdRatesWithFallback() {
   let primaryError
 
   try {
-    return await fetchDolarApiRates()
+    return await fetchCurrencyRates(DOLAR_API_USD_URL, 'BCV oficial', 'Paralelo')
   } catch (err) {
     primaryError = err
-    console.warn('[apiService] DolarAPI /v1/dolares falló, probando /oficial:', err)
+    console.warn('[apiService] DolarAPI /v1/dolares fallo, probando /oficial:', err)
   }
 
   try {
@@ -87,7 +125,7 @@ async function fetchRatesFromEndpoint() {
   } catch (officialError) {
     officialError.primaryError = primaryError
     primaryError = officialError
-    console.warn('[apiService] DolarAPI /oficial falló, probando fallback bcvapi.tech:', officialError)
+    console.warn('[apiService] DolarAPI /oficial fallo, probando fallback bcvapi.tech:', officialError)
   }
 
   try {
@@ -98,8 +136,8 @@ async function fetchRatesFromEndpoint() {
   }
 }
 
-async function fetchDolarApiRates() {
-  const body = await fetchJson(DOLAR_API_URL)
+async function fetchCurrencyRates(url, officialSource, parallelSource) {
+  const body = await fetchJson(url)
 
   if (!Array.isArray(body)) {
     throw new ApiError('PARSE', 'Respuesta de DolarAPI no tiene los campos esperados')
@@ -114,13 +152,13 @@ async function fetchDolarApiRates() {
 
   const fetchedAt = Date.now()
   return {
-    bcv: normalizeDolarApiRate(oficial, 'BCV oficial', fetchedAt),
-    paralelo: normalizeDolarApiRate(paralelo, 'Paralelo', fetchedAt)
+    bcv: normalizeDolarApiRate(oficial, officialSource, fetchedAt),
+    paralelo: normalizeDolarApiRate(paralelo, parallelSource, fetchedAt)
   }
 }
 
 async function fetchDolarApiOfficialRate() {
-  const body = await fetchJson(DOLAR_API_OFICIAL_URL)
+  const body = await fetchJson(DOLAR_API_USD_OFICIAL_URL)
 
   if (typeof body?.promedio !== 'number' || !body?.fechaActualizacion) {
     throw new ApiError('PARSE', 'Respuesta de DolarAPI oficial no tiene los campos esperados')
@@ -174,9 +212,9 @@ async function fetchJson(url) {
     })
   } catch (err) {
     if (err.name === 'AbortError') {
-      throw new ApiError('TIMEOUT', 'La consulta tardó demasiado')
+      throw new ApiError('TIMEOUT', 'La consulta tardo demasiado')
     }
-    throw new ApiError('NETWORK', 'Sin conexión a internet')
+    throw new ApiError('NETWORK', 'Sin conexion a internet')
   } finally {
     clearTimeout(timeoutId)
   }
@@ -186,7 +224,7 @@ async function fetchJson(url) {
     body = await response.json()
   } catch {
     if (response.ok) {
-      throw new ApiError('PARSE', 'Respuesta no es JSON válido')
+      throw new ApiError('PARSE', 'Respuesta no es JSON valido')
     }
   }
 
@@ -221,8 +259,8 @@ function readCache() {
 function writeCache(data) {
   try {
     const previous = readCache()
-    const previousBcv = getBcvRateFromData(previous?.data)
-    const nextBcv = getBcvRateFromData(data)
+    const previousBcv = previous?.data?.usd?.bcv
+    const nextBcv = data?.usd?.bcv
 
     if (
       previous?.data &&
@@ -239,16 +277,12 @@ function writeCache(data) {
     const entry = JSON.stringify({ data, savedAt: Date.now() })
     localStorage.setItem(CACHE_KEY, entry)
 
-    // v0.4.0: si la tasa es de HOY (o pasada — fin de semana, etc.), también
-    // la guardamos como "última válida". Las tasas FUTURAS NO se copian aquí,
-    // así que este slot siempre contiene la última tasa segura para cálculos.
-    const bcv = getBcvRateFromData(data)
-    const validity = getRateValidity(bcv?.fecha)
+    const validity = getRateValidity(data?.usd?.bcv?.fecha)
     if (validity !== 'future') {
       localStorage.setItem(LAST_VALID_KEY, entry)
     }
   } catch {
-    // localStorage lleno o deshabilitado: seguimos sin caché
+    // localStorage lleno o deshabilitado: seguimos sin cache
   }
 }
 
@@ -269,22 +303,14 @@ function isFresh(cached) {
 }
 
 function isCurrentCacheShape(cached) {
-  return Boolean(cached?.data?.bcv && cached.data.paralelo)
-}
-
-function getBcvRateFromData(data) {
-  return data?.bcv || data
+  return Boolean(cached?.data?.usd?.bcv)
 }
 
 function getRatesFromCache(cached) {
-  const bcv = getBcvRateFromData(cached.data)
-  const paralelo = cached.data?.paralelo || bcv?.paralelo || null
-  return { bcv, paralelo }
-}
-
-function getBcvRateFromCache(cached) {
-  const { bcv, paralelo } = getRatesFromCache(cached)
-  return { ...bcv, paralelo }
+  return {
+    usd: cached.data.usd,
+    eur: cached.data.eur || null
+  }
 }
 
 export function clearRateCache() {
@@ -319,66 +345,6 @@ export function clearObsoleteRateCaches() {
   }
 }
 
-/**
- * v0.4.0: variante de fetchBCVRate que GARANTIZA devolver una tasa con
- * validity ∈ {today, past, unknown} — nunca "future".
- *
- * Política: la app NO debe calcular conversiones con la tasa "de mañana"
- * que el BCV publica desde ~4 PM VET — los comercios siguen cobrando con
- * la tasa vigente HOY hasta medianoche.
- *
- * Lógica:
- *   1. Pide la tasa más reciente (cache o API).
- *   2. Si NO es futura → devuelve directamente.
- *   3. Si ES futura → busca en LAST_VALID_KEY la última tasa no-futura.
- *      - Si existe → devuelve esa, marca `isFallbackFromFuture: true` y
- *        adjunta `publishedRateFuture` (info de la tasa de mañana).
- *      - Si no existe → throw ApiError('NO_VALID_RATE') con `publishedRateFuture`
- *        adjunto para que la UI pueda mostrarla como referencia.
- *
- * Esta es la función que debe usar TODA la app para calcular o mostrar
- * "la tasa actual". El fetchBCVRate "crudo" queda como helper interno.
- */
-export async function fetchBCVRateForCalculation(opts = {}) {
-  const latest = await fetchBCVRate(opts)
-  const validity = getRateValidity(latest.fecha)
-
-  if (validity !== 'future') {
-    return latest
-  }
-
-  // Si la tasa más reciente es futura, preferimos la última vigente
-  // del caché (cuando existe). Esa tasa es 100% correcta para calcular HOY.
-  const lastValid = readLastValidRate()
-  const publishedFuture = { tasa: latest.tasa, fecha: latest.fecha }
-
-  if (lastValid) {
-    const validRate = getBcvRateFromCache(lastValid)
-    return {
-      ...validRate,
-      fromCache: true,
-      isFallbackFromFuture: true,
-      publishedRateFuture: publishedFuture
-    }
-  }
-
-  // v0.4.1 corregido: NO calculamos con tasa de mañana. Antes (v0.4.1 inicial)
-  // devolvíamos la tasa futura con flag, pero eso permite cálculos incorrectos
-  // si el usuario no lee el warning. La regla de oro es:
-  //   "Nunca, jamás, calcular con tasa que sea del FUTURO."
-  // Lanzamos un error tipado para que la UI muestre la tasa de mañana SOLO
-  // como referencia y bloquee los cálculos.
-  const err = new ApiError(
-    'NO_VALID_RATE',
-    'Aún no tenemos la tasa vigente de hoy'
-  )
-  err.publishedRateFuture = publishedFuture
-  throw err
-}
-
-/**
- * Error tipado para distinguir causas y traducir a mensajes amigables.
- */
 export class ApiError extends Error {
   constructor(code, message) {
     super(message)
@@ -387,32 +353,28 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * Traduce un error a mensaje amigable para adultos mayores.
- * Sin tecnicismos, con acción clara.
- */
 export function getFriendlyErrorMessage(err) {
   if (err instanceof ApiError) {
     switch (err.code) {
       case 'NETWORK':
-        return 'No hay internet. Revisa tu conexión e inténtalo de nuevo.'
+        return 'No hay internet. Revisa tu conexion e intentalo de nuevo.'
       case 'TIMEOUT':
-        return 'La conexión está muy lenta. Inténtalo de nuevo.'
+        return 'La conexion esta muy lenta. Intentalo de nuevo.'
       case 'AUTH':
-        return 'Hay un problema de configuración. Avisa al técnico.'
+        return 'Hay un problema de configuracion. Avisa al tecnico.'
       case 'QUOTA':
-        return 'Llegamos al límite de consultas. Inténtalo mañana.'
+        return 'Llegamos al limite de consultas. Intentalo manana.'
       case 'SERVER':
-        return 'El servidor no responde. Inténtalo en unos minutos.'
+        return 'El servidor no responde. Intentalo en unos minutos.'
       case 'PARSE':
-        return 'Recibimos una respuesta extraña. Inténtalo de nuevo.'
+        return 'Recibimos una respuesta extrana. Intentalo de nuevo.'
       case 'CONFIG':
-        return 'La aplicación no está bien configurada.'
+        return 'La aplicacion no esta bien configurada.'
       case 'NO_VALID_RATE':
-        return 'Aún no tenemos la tasa de hoy. El BCV la publica después de las 4 PM. Intenta más tarde.'
+        return 'Aun no tenemos la tasa de hoy. El BCV la publica despues de las 4 PM. Intenta mas tarde.'
       default:
-        return 'Algo salió mal. Inténtalo de nuevo.'
+        return 'Algo salio mal. Intentalo de nuevo.'
     }
   }
-  return 'No pudimos conectar. Inténtalo de nuevo.'
+  return 'No pudimos conectar. Intentalo de nuevo.'
 }

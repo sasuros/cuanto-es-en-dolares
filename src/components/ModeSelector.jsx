@@ -1,16 +1,8 @@
-/**
- * Segmented control de modo (v0.4.1):
- *   - 'bs-to-usd' → tengo Bs, conviértelos a $ con tasa BCV
- *   - 'usd-to-bs' → tengo $, conviértelos a Bs con tasa BCV
- *   - 'custom'    → tengo Bs + una tasa propia (USDT, mercado, etc.)
- *
- * El modo "Otra tasa" se agregó por petición de la usuaria: vendedores
- * en VE suelen cobrar con tasa de USDT (~700) en lugar de BCV (~520).
- */
 export default function ModeSelector({ mode, onChange, disabled = false }) {
   const options = [
     { id: 'bs-to-usd', label: 'Bolívares', symbol: 'Bs' },
     { id: 'usd-to-bs', label: 'Dólares', symbol: '$' },
+    { id: 'eur-to-bs', label: 'Euros', symbol: '€' },
     { id: 'custom', label: 'Otra tasa', symbol: 'Custom' }
   ]
 

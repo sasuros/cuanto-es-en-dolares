@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import ModeSelector from './components/ModeSelector.jsx'
 import CalculatorInput from './components/CalculatorInput.jsx'
 import ResultDisplay from './components/ResultDisplay.jsx'
-import InitialRateCard from './components/InitialRateCard.jsx'
+import RateDashboard from './components/RateDashboard.jsx'
 import {
   clearObsoleteRateCaches,
-  fetchBCVRateForCalculation,
+  fetchAllRatesForCalculation,
   getFriendlyErrorMessage
 } from './services/apiService.js'
 
@@ -29,7 +29,7 @@ function writeThemePreference(theme) {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme)
   } catch {
-    // localStorage deshabilitado: el toggle sigue funcionando durante la sesión
+    // localStorage deshabilitado: el toggle sigue funcionando durante la sesion
   }
 }
 
@@ -39,10 +39,7 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-
-  // Tasa inicial (visible al abrir la app)
-  const [initialRate, setInitialRate] = useState(null)
-  const [paraleloRate, setParaleloRate] = useState(null)
+  const [rates, setRates] = useState(null)
   const [initialRateLoading, setInitialRateLoading] = useState(true)
   const [initialRateError, setInitialRateError] = useState(null)
   const [ocrPreloadStatus, setOcrPreloadStatus] = useState('idle')
@@ -80,33 +77,28 @@ export default function App() {
         if (!cancelled) setOcrPreloadStatus('ready')
       })
       .catch(err => {
-        console.warn('[App] No pudimos precargar el escáner OCR:', err)
+        console.warn('[App] No pudimos precargar el escaner OCR:', err)
         if (!cancelled) setOcrPreloadStatus('error')
       })
 
     return () => { cancelled = true }
   }, [])
 
-  // Fetch automático al montar (la única tasa que NO bloquea: si futura,
-  // marca isFuture true y la app sigue funcional 24/7).
   useEffect(() => {
     let cancelled = false
 
     clearObsoleteRateCaches()
 
-    fetchBCVRateForCalculation()
-      .then(rate => {
+    fetchAllRatesForCalculation()
+      .then(nextRates => {
         if (!cancelled) {
-          setInitialRate(rate)
-          setParaleloRate(rate.paralelo || null)
+          setRates(nextRates)
         }
       })
       .catch(err => {
         if (cancelled) return
-        console.error('[App] Error al cargar tasa inicial:', err)
+        console.error('[App] Error al cargar tasas iniciales:', err)
         if (err?.code === 'NO_VALID_RATE') {
-          // Sin tasa válida hoy + BCV publicó tasa de mañana →
-          // mostramos info de mañana pero bloqueamos cálculos.
           setInitialRateError({
             type: 'no_valid_rate',
             message: getFriendlyErrorMessage(err),
@@ -148,29 +140,40 @@ export default function App() {
     setLoading(true)
 
     try {
-      const rate = await fetchBCVRateForCalculation()
-      const converted = mode === 'bs-to-usd'
+      const nextRates = await fetchAllRatesForCalculation()
+      const currency = getModeCurrency(mode)
+      const direction = getModeDirection(mode)
+      const currencyRates = nextRates[currency]
+      const rate = currencyRates?.bcv
+
+      if (!rate?.tasa) {
+        throw new Error(currency === 'eur'
+          ? 'No pudimos consultar el euro. Intenta de nuevo en unos minutos.'
+          : 'No pudimos consultar la tasa. Intenta de nuevo.')
+      }
+
+      const converted = direction === 'from-bs'
         ? amount / rate.tasa
         : amount * rate.tasa
 
       setResult({
         mode,
+        currency,
+        direction,
         amount,
         converted,
         tasa: rate.tasa,
         fecha: rate.fecha,
-        paralelo: rate.paralelo || null,
+        paralelo: currencyRates.paralelo || null,
         fetchedAt: rate.fetchedAt,
-        fromCache: rate.fromCache,
-        stale: rate.stale,
+        fromCache: nextRates.fromCache,
+        stale: nextRates.stale,
         isFuture: rate.isFuture,
-        isFallbackFromFuture: rate.isFallbackFromFuture,
-        publishedRateFuture: rate.publishedRateFuture
+        isFallbackFromFuture: nextRates.isFallbackFromFuture,
+        publishedRateFuture: nextRates.publishedRateFuture
       })
 
-      // Sincronizamos initialRate con la tasa más reciente
-      setInitialRate(rate)
-      setParaleloRate(rate.paralelo || null)
+      setRates(nextRates)
       setInitialRateError(null)
     } catch (err) {
       console.error('[App] Error al consultar tasa:', err)
@@ -181,16 +184,13 @@ export default function App() {
           futureRate: err.publishedRateFuture
         })
       } else {
-        setError(getFriendlyErrorMessage(err))
+        setError(err?.message || getFriendlyErrorMessage(err))
       }
     } finally {
       setLoading(false)
     }
   }
 
-  // Modo custom v0.4.2: bidireccional (bs ↔ usd) con tasa propia.
-  //   direction = 'bs'  → amount es Bs, resultado en USD (amount / tasa)
-  //   direction = 'usd' → amount es USD, resultado en Bs (amount * tasa)
   function handleCustomCalculate(amount, customTasa, direction = 'bs') {
     setError(null)
     setLoading(false)
@@ -202,6 +202,8 @@ export default function App() {
     setResult({
       mode: 'custom',
       customDirection: direction,
+      currency: 'usd',
+      direction: direction === 'bs' ? 'from-bs' : 'to-bs',
       amount,
       converted,
       tasa: customTasa,
@@ -226,7 +228,6 @@ export default function App() {
         >
           <span aria-hidden="true">{theme === 'dark' ? '🌙' : '☀️'}</span>
         </button>
-        {/* v0.4.1: subtítulo eliminado por petición de la usuaria — innecesario */}
       </header>
 
       <section className="app-content">
@@ -241,7 +242,7 @@ export default function App() {
           onCalculate={handleCalculate}
           onCustomCalculate={handleCustomCalculate}
           onClear={handleClear}
-          bcvRate={initialRate?.tasa || null}
+          bcvRate={rates?.usd?.bcv?.tasa || null}
           ocrPreloadStatus={ocrPreloadStatus}
           disabled={loading}
         />
@@ -251,13 +252,11 @@ export default function App() {
             result={result}
             loading={loading}
             error={error}
-            paralelo={paraleloRate}
             mode={mode}
           />
         ) : (
-          <InitialRateCard
-            rate={initialRate}
-            paralelo={paraleloRate}
+          <RateDashboard
+            rates={rates}
             loading={initialRateLoading}
             error={initialRateError}
           />
@@ -266,8 +265,16 @@ export default function App() {
 
       <footer className="app-footer">
         <p className="footer-text">Tasa del BCV · Venezuela</p>
-        <p className="app-version">v0.8.3</p>
+        <p className="app-version">v0.9.0</p>
       </footer>
     </main>
   )
+}
+
+function getModeCurrency(mode) {
+  return mode === 'bs-to-eur' || mode === 'eur-to-bs' ? 'eur' : 'usd'
+}
+
+function getModeDirection(mode) {
+  return mode === 'bs-to-usd' || mode === 'bs-to-eur' ? 'from-bs' : 'to-bs'
 }
