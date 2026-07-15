@@ -9,7 +9,32 @@ import {
   getFriendlyErrorMessage
 } from './services/apiService.js'
 
+const THEME_STORAGE_KEY = 'theme-preference'
+
+function getSystemTheme() {
+  if (typeof window === 'undefined') return 'dark'
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
+function readThemePreference() {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY)
+    return stored === 'light' || stored === 'dark' ? stored : getSystemTheme()
+  } catch {
+    return getSystemTheme()
+  }
+}
+
+function writeThemePreference(theme) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
+  } catch {
+    // localStorage deshabilitado: el toggle sigue funcionando durante la sesión
+  }
+}
+
 export default function App() {
+  const [theme, setTheme] = useState(() => readThemePreference())
   const [mode, setMode] = useState('bs-to-usd')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -20,6 +45,28 @@ export default function App() {
   const [paraleloRate, setParaleloRate] = useState(null)
   const [initialRateLoading, setInitialRateLoading] = useState(true)
   const [initialRateError, setInitialRateError] = useState(null)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-color-scheme: light)')
+    if (!query) return undefined
+
+    function handleSystemThemeChange(event) {
+      try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY)
+        if (stored === 'light' || stored === 'dark') return
+      } catch {
+        // Si no podemos leer preferencia, seguimos el sistema.
+      }
+      setTheme(event.matches ? 'light' : 'dark')
+    }
+
+    query.addEventListener?.('change', handleSystemThemeChange)
+    return () => query.removeEventListener?.('change', handleSystemThemeChange)
+  }, [])
 
   // Fetch automático al montar (la única tasa que NO bloquea: si futura,
   // marca isFuture true y la app sigue funcional 24/7).
@@ -67,6 +114,14 @@ export default function App() {
   function handleClear() {
     setResult(null)
     setError(null)
+  }
+
+  function handleThemeToggle() {
+    setTheme(current => {
+      const next = current === 'dark' ? 'light' : 'dark'
+      writeThemePreference(next)
+      return next
+    })
   }
 
   async function handleCalculate(amount) {
@@ -143,6 +198,15 @@ export default function App() {
     <main className="app">
       <header className="app-header">
         <h1 className="app-title">¿Cuánto es?</h1>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={handleThemeToggle}
+          aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          title={theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}
+        >
+          <span aria-hidden="true">{theme === 'dark' ? '🌙' : '☀️'}</span>
+        </button>
         {/* v0.4.1: subtítulo eliminado por petición de la usuaria — innecesario */}
       </header>
 
@@ -158,6 +222,7 @@ export default function App() {
           onCalculate={handleCalculate}
           onCustomCalculate={handleCustomCalculate}
           onClear={handleClear}
+          bcvRate={initialRate?.tasa || null}
           disabled={loading}
         />
 

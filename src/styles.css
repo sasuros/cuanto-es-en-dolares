@@ -15,6 +15,8 @@
   --color-bg-soft: #1E1E1E;       /* Fondo de tarjetas / contenedores */
   --color-bg-input: #242424;      /* Fondo de inputs */
   --color-bg-elevated: #2A2A2A;   /* Superficies elevadas (modales, dropdowns) */
+  --color-surface: #2C3E50;       /* Controles secundarios: chips, segmented controls, toggle */
+  --color-surface-hover: #34495E;
 
   /* ---------- Texto ---------- */
   --color-text: #F5F5F5;          /* Texto principal — off-white (descansa más que blanco puro)
@@ -31,6 +33,10 @@
                                      Contraste vs --color-bg: 6.7:1 → AAA Large ✅ */
   --color-primary-bright: #3DE682; /* Verde más brillante — hover/focus */
   --color-primary-dark: #27AE60;  /* Verde oscuro — active/pressed */
+  --color-primary-readable: #2ECC71;
+  --color-primary-display: #2ECC71;
+  --color-primary-display-bright: #3DE682;
+  --color-active-text: #FFFFFF;
 
   --color-secondary: #5DADE2;     /* Azul brillante — BCV / información
                                      (subido desde #3498DB para legibilidad en oscuro)
@@ -89,6 +95,45 @@
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
   --glow-primary: 0 0 24px rgba(46, 204, 113, 0.35);  /* Resplandor verde para botón principal */
   --glow-focus: 0 0 0 4px rgba(46, 204, 113, 0.25);   /* Halo en focus */
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #F5F5F7;
+  --color-bg-soft: #FFFFFF;
+  --color-bg-input: #FFFFFF;
+  --color-bg-elevated: #FFFFFF;
+  --color-surface: #E8E8ED;
+  --color-surface-hover: #DADAE0;
+
+  --color-text: #1D1D1F;
+  --color-text-soft: #4A4A4F;
+  --color-text-dim: #515157;
+  --color-text-on-primary: #04120A;
+
+  --color-primary: #28B463;
+  --color-primary-bright: #28B463;
+  --color-primary-dark: #1F8F4E;
+  --color-primary-readable: #075225;
+  --color-primary-display: #075225;
+  --color-primary-display-bright: #075225;
+  --color-active-text: #04120A;
+
+  --color-secondary: #0B5D8A;
+  --color-accent: #7A4500;
+  --color-error: #A61B12;
+  --color-success: #0B6B34;
+
+  --color-border: #D2D2D7;
+  --color-border-soft: #E1E1E6;
+  --color-border-focus: #28B463;
+
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --glow-primary: 0 0 18px rgba(40, 180, 99, 0.25);
+  --glow-focus: 0 0 0 4px rgba(40, 180, 99, 0.22);
 }
 
 /* ---------- Reset suave ---------- */
@@ -161,6 +206,10 @@ input:focus-visible {
 /* ---------- Header ---------- */
 .app-header {
   /* v0.4.0: alineación izquierda (más limpio, mejor jerarquía) */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
   text-align: left;
   /* Safe area: respeta notch / Dynamic Island en iPhone */
   padding-top: max(var(--space-md), env(safe-area-inset-top));
@@ -180,6 +229,31 @@ input:focus-visible {
   font-size: var(--font-size-base);
   color: var(--color-text-soft);
   margin-top: var(--space-xs);
+}
+
+.theme-toggle {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  font-size: 22px;
+  line-height: 1;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.theme-toggle:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.theme-toggle:active:not(:disabled) {
+  transform: scale(0.94);
 }
 
 /* ---------- Contenido ---------- */
@@ -233,10 +307,11 @@ input:focus-visible {
 .mode-selector__group {
   display: flex;
   gap: 0;
-  background: #2C3E50;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 4px;
   min-height: 80px;
+  border: 1px solid var(--color-border-soft);
 }
 
 .mode-selector__option {
@@ -256,7 +331,7 @@ input:focus-visible {
 
 .mode-selector__option--active {
   background: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-active-text);
   font-weight: var(--font-weight-bold);
 }
 
@@ -430,9 +505,10 @@ input:focus-visible {
 .custom-direction__group {
   display: flex;
   gap: 0;
-  background: #2C3E50;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 4px;
+  border: 1px solid var(--color-border-soft);
 }
 
 .custom-direction__btn {
@@ -449,7 +525,7 @@ input:focus-visible {
 
 .custom-direction__btn--active {
   background: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-active-text);
 }
 
 .custom-direction__btn:hover:not(:disabled):not(.custom-direction__btn--active) {
@@ -570,21 +646,22 @@ input:focus-visible {
   font-size: 16px;
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
-  background: #2C3E50;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
   border-radius: 22px;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .quick-chip:hover:not(:disabled) {
-  background: #34495E;
+  background: var(--color-surface-hover);
 }
 
 .quick-chip:active:not(:disabled) {
   transform: scale(0.95);
   background: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-active-text);
 }
 
 .quick-chip:disabled {
@@ -627,7 +704,7 @@ input:focus-visible {
   font-family: var(--font-family-numbers);
   font-size: var(--font-size-result);
   font-weight: var(--font-weight-black);
-  color: var(--color-primary);
+  color: var(--color-primary-display);
   line-height: 1.05;
   letter-spacing: -1.5px;
   font-variant-numeric: tabular-nums;
@@ -761,11 +838,11 @@ input:focus-visible {
 }
 
 .parallel-rate__gap--lower {
-  color: #2ECC71;
+  color: var(--color-success);
 }
 
 .parallel-rate__gap--higher {
-  color: #F39C12;
+  color: var(--color-accent);
 }
 
 /* Variante info: card de tasa al abrir la app (más sobrio que --success) */
@@ -777,7 +854,7 @@ input:focus-visible {
    como el resultado del cálculo (el cálculo es el wow moment) */
 .initial-rate-card__amount {
   font-size: 44px;
-  color: var(--color-primary-bright);
+  color: var(--color-primary-display-bright);
   letter-spacing: -1px;
 }
 

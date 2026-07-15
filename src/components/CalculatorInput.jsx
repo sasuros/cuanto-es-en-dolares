@@ -20,6 +20,8 @@ const DEBOUNCE_MS = 300
 
 const QUICK_CHIPS_BS = [500, 1000, 5000, 10000, 50000]
 const QUICK_CHIPS_USD = [1, 5, 10, 20, 50]
+const QUICK_CHIPS_USD_HIGH_RATE = [1, 5, 10, 20, 50, 100]
+const QUICK_CHIP_USD_EQUIVALENTS = [1, 5, 10, 20, 50]
 
 // Persistencias del modo custom
 const CUSTOM_RATE_KEY = 'custom-rate-last-used'
@@ -104,11 +106,31 @@ function sanitizeUsdInput(value) {
   return intPart + '.' + decPart
 }
 
+function getRoundingStep(amount) {
+  if (amount < 1000) return 10
+  if (amount < 10000) return 100
+  if (amount < 20000) return 500
+  return 1000
+}
+
+function roundChipAmount(amount) {
+  const step = getRoundingStep(amount)
+  return Math.max(step, Math.round(amount / step) * step)
+}
+
+function getDynamicBsChips(bcvRate) {
+  const rate = Number(bcvRate)
+  if (!Number.isFinite(rate) || rate <= 0) return QUICK_CHIPS_BS
+
+  return QUICK_CHIP_USD_EQUIVALENTS.map(usdAmount => roundChipAmount(usdAmount * rate))
+}
+
 export default function CalculatorInput({
   mode,
   onCalculate,
   onCustomCalculate,
   onClear,
+  bcvRate = null,
   disabled = false
 }) {
   const [raw, setRaw] = useState('')
@@ -368,7 +390,9 @@ export default function CalculatorInput({
   }
 
   // ====== Render: modos BCV (Bs o USD) — un input + chips ======
-  const chips = isBsMode ? QUICK_CHIPS_BS : QUICK_CHIPS_USD
+  const chips = isBsMode
+    ? getDynamicBsChips(bcvRate)
+    : (Number(bcvRate) > 500 ? QUICK_CHIPS_USD_HIGH_RATE : QUICK_CHIPS_USD)
 
   return (
     <div className="calculator-input">
