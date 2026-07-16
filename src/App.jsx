@@ -265,7 +265,7 @@ export default function App() {
 
       <footer className="app-footer">
         <p className="footer-text">Tasa del BCV · Venezuela</p>
-        <p className="app-version">v0.9.0</p>
+        <p className="app-version">v0.10.0</p>
       </footer>
     </main>
   )
