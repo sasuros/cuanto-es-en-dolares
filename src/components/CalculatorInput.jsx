@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import CameraCapture from './CameraCapture.jsx'
 import {
   formatBolivares,
   parseBolivares,
@@ -108,7 +107,6 @@ export default function CalculatorInput({
   onCustomCalculate,
   onClear,
   bcvRate = null,
-  ocrPreloadStatus = 'idle',
   disabled = false
 }) {
   const [raw, setRaw] = useState('')
@@ -243,24 +241,6 @@ export default function CalculatorInput({
     }
     const amount = isBsMode ? parseBolivares(newRaw) : parseUSDInput(newRaw)
     if (amount > 0) onCalculate(amount)
-  }
-
-  function handleOcrAmountDetected(inputValue, detectedAmount) {
-    const newRaw = sanitizeBsInputDecimal(String(inputValue))
-    const amount = Number.isFinite(detectedAmount)
-      ? detectedAmount
-      : parseBolivares(newRaw)
-    setRaw(newRaw)
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-      debounceRef.current = null
-    }
-    if (amount > 0) onCalculate(amount)
-    inputRef.current?.focus()
-  }
-
-  function handleOcrManualEntry() {
-    inputRef.current?.focus()
   }
 
   function formatChipLabel(value) {
@@ -428,15 +408,6 @@ export default function CalculatorInput({
           {isBsMode ? 'Bs' : isEurMode ? '€' : '$'}
         </span>
       </div>
-
-      {isBsMode && (
-        <CameraCapture
-          onAmountDetected={handleOcrAmountDetected}
-          onManualEntry={handleOcrManualEntry}
-          preloadStatus={ocrPreloadStatus}
-          disabled={disabled}
-        />
-      )}
 
       <div
         className="quick-chips-container"

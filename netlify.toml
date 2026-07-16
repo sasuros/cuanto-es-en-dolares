@@ -6,6 +6,11 @@
 # SPA fallback — toda ruta sirve index.html para que la PWA funcione.
 # ============================================
 [[redirects]]
+  from = "/api/usdt"
+  to = "/.netlify/functions/usdt-rate"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

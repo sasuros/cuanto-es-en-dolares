@@ -104,7 +104,7 @@ export default function ResultDisplay({ result, loading, error, mode }) {
     isFuture,
     isFallbackFromFuture,
     publishedRateFuture,
-    paralelo,
+    usdt,
     currency = 'usd',
     direction
   } = result
@@ -112,16 +112,16 @@ export default function ResultDisplay({ result, loading, error, mode }) {
   const relativeTime = formatRelativeTime(fetchedAt)
   const isCustomMode = mode === 'custom'
   const validity = getRateValidity(fecha)
-  const unit = currency === 'eur' ? 'Bs/€' : 'Bs/$'
   const currencyName = currency === 'eur' ? 'euro' : 'dolar'
-  const parallelRate = paralelo || null
-  const showParallelResult =
+  const usdtRate = usdt || null
+  const showUsdtResult =
     !isCustomMode &&
-    parallelRate &&
-    Number.isFinite(parallelRate.tasa) &&
-    parallelRate.tasa > 0
-  const convertedWithParallel = showParallelResult
-    ? (direction === 'from-bs' ? amount / parallelRate.tasa : amount * parallelRate.tasa)
+    currency === 'usd' &&
+    usdtRate &&
+    Number.isFinite(usdtRate.tasa) &&
+    usdtRate.tasa > 0
+  const convertedWithUsdt = showUsdtResult
+    ? (direction === 'from-bs' ? amount / usdtRate.tasa : amount * usdtRate.tasa)
     : null
 
   return (
@@ -211,25 +211,49 @@ export default function ResultDisplay({ result, loading, error, mode }) {
         )}
       </div>
 
-      {showParallelResult && (
+      {showUsdtResult && (
         <>
           <div className="result-display__divider" aria-hidden="true" />
 
-          <div className="parallel-result">
-            <p className="parallel-result__line">
-              <span className="parallel-result__label">Con paralelo:</span>
-              <strong className="parallel-result__value">
-                {resultIsForeign
-                  ? formatForeignCurrency(convertedWithParallel, currency)
-                  : `${formatBolivares(convertedWithParallel)} Bs`}
-              </strong>
-            </p>
-            <p className="parallel-result__rate">
-              ({formatRate(parallelRate.tasa)} {unit})
-            </p>
+          <div className="reference-result">
+            <ReferenceRateLine
+              label="Con USDT:"
+              value={convertedWithUsdt}
+              rate={usdtRate.tasa}
+              unit="Bs/USDT"
+              resultIsForeign={resultIsForeign}
+              currency={currency}
+              tone="usdt"
+            />
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function ReferenceRateLine({
+  label,
+  value,
+  rate,
+  unit,
+  resultIsForeign,
+  currency,
+  tone = 'neutral'
+}) {
+  return (
+    <div className={`reference-result__item reference-result__item--${tone}`}>
+      <p className="reference-result__line">
+        <span className="reference-result__label">{label}</span>
+        <strong className="reference-result__value">
+          {resultIsForeign
+            ? formatForeignCurrency(value, currency)
+            : `${formatBolivares(value)} Bs`}
+        </strong>
+      </p>
+      <p className="reference-result__rate">
+        ({formatRate(rate)} {unit})
+      </p>
     </div>
   )
 }

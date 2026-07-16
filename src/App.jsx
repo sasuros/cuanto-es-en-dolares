@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import ModeSelector from './components/ModeSelector.jsx'
 import CalculatorInput from './components/CalculatorInput.jsx'
 import ResultDisplay from './components/ResultDisplay.jsx'
-import RateDashboard from './components/RateDashboard.jsx'
+import RateCard from './components/RateCard.jsx'
 import {
   clearObsoleteRateCaches,
   fetchAllRatesForCalculation,
@@ -40,9 +40,9 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [rates, setRates] = useState(null)
-  const [initialRateLoading, setInitialRateLoading] = useState(true)
-  const [initialRateError, setInitialRateError] = useState(null)
-  const [ocrPreloadStatus, setOcrPreloadStatus] = useState('idle')
+  const [usdtRate, setUsdtRate] = useState(null)
+  const [ratesLoading, setRatesLoading] = useState(true)
+  const [ratesError, setRatesError] = useState(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -69,47 +69,30 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
 
-    setOcrPreloadStatus('loading')
-    import('tesseract.js')
-      .then(async ({ createWorker }) => {
-        const worker = await createWorker('spa')
-        await worker.terminate()
-        if (!cancelled) setOcrPreloadStatus('ready')
-      })
-      .catch(err => {
-        console.warn('[App] No pudimos precargar el escaner OCR:', err)
-        if (!cancelled) setOcrPreloadStatus('error')
-      })
-
-    return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-
     clearObsoleteRateCaches()
 
     fetchAllRatesForCalculation()
       .then(nextRates => {
         if (!cancelled) {
           setRates(nextRates)
+          setUsdtRate(nextRates.usdt || null)
         }
       })
       .catch(err => {
         if (cancelled) return
         console.error('[App] Error al cargar tasas iniciales:', err)
         if (err?.code === 'NO_VALID_RATE') {
-          setInitialRateError({
+          setRatesError({
             type: 'no_valid_rate',
             message: getFriendlyErrorMessage(err),
             futureRate: err.publishedRateFuture
           })
         } else {
-          setInitialRateError(getFriendlyErrorMessage(err))
+          setRatesError(getFriendlyErrorMessage(err))
         }
       })
       .finally(() => {
-        if (!cancelled) setInitialRateLoading(false)
+        if (!cancelled) setRatesLoading(false)
       })
 
     return () => { cancelled = true }
@@ -164,7 +147,7 @@ export default function App() {
         converted,
         tasa: rate.tasa,
         fecha: rate.fecha,
-        paralelo: currencyRates.paralelo || null,
+        usdt: currency === 'usd' ? nextRates.usdt || null : null,
         fetchedAt: rate.fetchedAt,
         fromCache: nextRates.fromCache,
         stale: nextRates.stale,
@@ -174,7 +157,8 @@ export default function App() {
       })
 
       setRates(nextRates)
-      setInitialRateError(null)
+      setUsdtRate(nextRates.usdt || null)
+      setRatesError(null)
     } catch (err) {
       console.error('[App] Error al consultar tasa:', err)
       if (err?.code === 'NO_VALID_RATE') {
@@ -213,8 +197,6 @@ export default function App() {
     })
   }
 
-  const showResultArea = result !== null || loading || error !== null
-
   return (
     <main className="app">
       <header className="app-header">
@@ -231,23 +213,32 @@ export default function App() {
       </header>
 
       <section className="app-content">
-        <ModeSelector
-          mode={mode}
-          onChange={handleModeChange}
-          disabled={loading}
+        <RateCard
+          rates={rates}
+          usdt={usdtRate}
+          loading={ratesLoading}
+          error={ratesError}
         />
 
-        <CalculatorInput
-          mode={mode}
-          onCalculate={handleCalculate}
-          onCustomCalculate={handleCustomCalculate}
-          onClear={handleClear}
-          bcvRate={rates?.usd?.bcv?.tasa || null}
-          ocrPreloadStatus={ocrPreloadStatus}
-          disabled={loading}
-        />
+        <section className="calc-card" aria-label="Calculadora">
+          <p className="calc-card__label">¿Qué tienes?</p>
+          <ModeSelector
+            mode={mode}
+            onChange={handleModeChange}
+            disabled={loading}
+          />
 
-        {showResultArea ? (
+          <CalculatorInput
+            mode={mode}
+            onCalculate={handleCalculate}
+            onCustomCalculate={handleCustomCalculate}
+            onClear={handleClear}
+            bcvRate={rates?.usd?.bcv?.tasa || null}
+            disabled={loading}
+          />
+        </section>
+
+        {result !== null || loading || error !== null ? (
           <ResultDisplay
             result={result}
             loading={loading}
@@ -255,17 +246,14 @@ export default function App() {
             mode={mode}
           />
         ) : (
-          <RateDashboard
-            rates={rates}
-            loading={initialRateLoading}
-            error={initialRateError}
-          />
+          <section className="result-card result-card--placeholder" aria-live="polite">
+            <p className="result-card__placeholder-text">Escribe un monto para calcular</p>
+          </section>
         )}
       </section>
 
       <footer className="app-footer">
-        <p className="footer-text">Tasa del BCV · Venezuela</p>
-        <p className="app-version">v0.10.0</p>
+        <p className="app-version">v0.11.0</p>
       </footer>
     </main>
   )

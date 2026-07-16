@@ -4,6 +4,7 @@ const DOLAR_API_USD_URL = 'https://ve.dolarapi.com/v1/dolares'
 const DOLAR_API_USD_OFICIAL_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
 const DOLAR_API_EUR_URL = 'https://ve.dolarapi.com/v1/euros'
 const BCVAPI_FALLBACK_URL = 'https://bcvapi.tech/api/v1/dolar'
+const USDT_PROXY_URL = '/api/usdt'
 
 const CACHE_KEY = 'rates-cache-v3'
 const LAST_VALID_KEY = 'rates-last-valid-v3'
@@ -91,9 +92,10 @@ export async function fetchAllRatesForCalculation(opts = {}) {
 }
 
 async function fetchAllRatesFromEndpoint() {
-  const [usdResult, eurResult] = await Promise.allSettled([
+  const [usdResult, eurResult, usdtResult] = await Promise.allSettled([
     fetchUsdRatesWithFallback(),
-    fetchCurrencyRates(DOLAR_API_EUR_URL, 'Euro BCV', 'Euro paralelo')
+    fetchCurrencyRates(DOLAR_API_EUR_URL, 'Euro BCV', 'Euro paralelo'),
+    fetchUSDTRate()
   ])
 
   if (usdResult.status === 'rejected') {
@@ -106,8 +108,55 @@ async function fetchAllRatesFromEndpoint() {
 
   return {
     usd: usdResult.value,
-    eur: eurResult.status === 'fulfilled' ? eurResult.value : null
+    eur: eurResult.status === 'fulfilled' ? eurResult.value : null,
+    usdt: usdtResult.status === 'fulfilled' ? usdtResult.value : null
   }
+}
+
+async function fetchUSDTRate() {
+  try {
+    const data = await fetchJson(USDT_PROXY_URL)
+    const normalized = normalizeUsdtPayload(data)
+
+    if (!normalized) return null
+
+    return {
+      tasa: normalized.usdt,
+      ask: normalized.ask,
+      bid: normalized.bid,
+      fecha: normalized.updated_at,
+      fetchedAt: Date.now(),
+      fuente: 'Binance P2P'
+    }
+  } catch (error) {
+    console.warn('[apiService] USDT fetch failed:', error?.message || error)
+    return null
+  }
+}
+
+function normalizeUsdtPayload(data) {
+  if (typeof data?.usdt === 'number') {
+    return data
+  }
+
+  const rates = Array.isArray(data?.rates) ? data.rates : []
+  const binance = findBinanceRate(rates)
+  if (typeof binance?.mid !== 'number') return null
+
+  return {
+    usdt: binance.mid,
+    ask: binance.ask || null,
+    bid: binance.bid || null,
+    updated_at: binance.updated_at || data?.fetched_at || null
+  }
+}
+
+function findBinanceRate(rates) {
+  return rates.find(rate =>
+    rate?.market === 'binance' ||
+    rate?.market === 'binance_p2p' ||
+    (rate?.type === 'p2p' && /binance/i.test(rate?.market || ''))
+  )
 }
 
 async function fetchUsdRatesWithFallback() {
@@ -309,7 +358,8 @@ function isCurrentCacheShape(cached) {
 function getRatesFromCache(cached) {
   return {
     usd: cached.data.usd,
-    eur: cached.data.eur || null
+    eur: cached.data.eur || null,
+    usdt: cached.data.usdt || null
   }
 }
 

@@ -1,14 +1,13 @@
 export default function ModeSelector({ mode, onChange, disabled = false }) {
   const options = [
-    { id: 'bs-to-usd', label: 'Bolívares', symbol: 'Bs' },
-    { id: 'usd-to-bs', label: 'Dólares', symbol: '$' },
-    { id: 'eur-to-bs', label: 'Euros', symbol: '€' },
-    { id: 'custom', label: 'Otra tasa', symbol: 'Custom' }
+    { id: 'bs-to-usd', label: 'Bs', symbol: 'Bolívares' },
+    { id: 'usd-to-bs', label: 'USD', symbol: 'Dólares' },
+    { id: 'eur-to-bs', label: 'EUR', symbol: 'Euros' },
+    { id: 'custom', label: 'Otra', symbol: 'Tasa' }
   ]
 
   return (
     <div className="mode-selector">
-      <p className="mode-selector__label">¿QUÉ TIENES?</p>
       <div
         className="mode-selector__group"
         role="radiogroup"
