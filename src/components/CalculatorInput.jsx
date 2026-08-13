@@ -101,6 +101,7 @@ export default function CalculatorInput({
   onCustomCalculate,
   onClear,
   bcvRate = null,
+  bsTargetCurrency = 'usd',
   disabled = false
 }) {
   const [raw, setRaw] = useState('')
@@ -137,6 +138,20 @@ export default function CalculatorInput({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customDirection])
+
+  useEffect(() => {
+    if (!isBsMode || !raw) return
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
+
+    const amount = parseBolivares(raw)
+    if (amount > 0) onCalculate(amount)
+    // The target is only relevant in Bs modes; onCalculate is recreated by App.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bsTargetCurrency])
 
   useEffect(() => {
     return () => {

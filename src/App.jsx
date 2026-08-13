@@ -10,6 +10,7 @@ import {
 } from './services/apiService.js'
 
 const THEME_STORAGE_KEY = 'theme-preference'
+const BS_TARGET_CURRENCY_STORAGE_KEY = 'bs-target-currency'
 
 function getSystemTheme() {
   if (typeof window === 'undefined') return 'dark'
@@ -33,9 +34,26 @@ function writeThemePreference(theme) {
   }
 }
 
+function readBsTargetCurrency() {
+  try {
+    return localStorage.getItem(BS_TARGET_CURRENCY_STORAGE_KEY) === 'eur' ? 'eur' : 'usd'
+  } catch {
+    return 'usd'
+  }
+}
+
+function writeBsTargetCurrency(currency) {
+  try {
+    localStorage.setItem(BS_TARGET_CURRENCY_STORAGE_KEY, currency)
+  } catch {
+    // localStorage deshabilitado: el selector sigue funcionando durante la sesion
+  }
+}
+
 export default function App() {
   const [theme, setTheme] = useState(() => readThemePreference())
   const [mode, setMode] = useState('bs-to-usd')
+  const [bsTargetCurrency, setBsTargetCurrency] = useState(() => readBsTargetCurrency())
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -118,13 +136,19 @@ export default function App() {
     })
   }
 
+  function handleBsTargetCurrencyChange(currency) {
+    if (currency === bsTargetCurrency) return
+    setBsTargetCurrency(currency)
+    writeBsTargetCurrency(currency)
+  }
+
   async function handleCalculate(amount) {
     setError(null)
     setLoading(true)
 
     try {
       const nextRates = await fetchAllRatesForCalculation()
-      const currency = getModeCurrency(mode)
+      const currency = getModeCurrency(mode, bsTargetCurrency)
       const direction = getModeDirection(mode)
       const currencyRates = nextRates[currency]
       const rate = currencyRates?.bcv
@@ -228,12 +252,21 @@ export default function App() {
             disabled={loading}
           />
 
+          {mode === 'bs-to-usd' && (
+            <TargetCurrencySelector
+              value={bsTargetCurrency}
+              onChange={handleBsTargetCurrencyChange}
+              disabled={loading}
+            />
+          )}
+
           <CalculatorInput
             mode={mode}
             onCalculate={handleCalculate}
             onCustomCalculate={handleCustomCalculate}
             onClear={handleClear}
             bcvRate={rates?.usd?.bcv?.tasa || null}
+            bsTargetCurrency={bsTargetCurrency}
             disabled={loading}
           />
         </section>
@@ -253,16 +286,47 @@ export default function App() {
       </section>
 
       <footer className="app-footer">
-        <p className="app-version">v0.11.0</p>
+        <p className="app-version">v0.11.2</p>
       </footer>
     </main>
   )
 }
 
-function getModeCurrency(mode) {
+function getModeCurrency(mode, bsTargetCurrency) {
+  if (mode === 'bs-to-usd') return bsTargetCurrency
   return mode === 'bs-to-eur' || mode === 'eur-to-bs' ? 'eur' : 'usd'
 }
 
 function getModeDirection(mode) {
   return mode === 'bs-to-usd' || mode === 'bs-to-eur' ? 'from-bs' : 'to-bs'
+}
+
+function TargetCurrencySelector({ value, onChange, disabled }) {
+  return (
+    <div className="target-currency-selector">
+      <span className="target-currency-selector__label">Convertir a:</span>
+      <div className="target-currency-selector__group" role="radiogroup" aria-label="Moneda destino">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={value === 'usd'}
+          className={`target-currency-selector__option${value === 'usd' ? ' target-currency-selector__option--active' : ''}`}
+          onClick={() => onChange('usd')}
+          disabled={disabled}
+        >
+          $ Dólar
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={value === 'eur'}
+          className={`target-currency-selector__option${value === 'eur' ? ' target-currency-selector__option--active' : ''}`}
+          onClick={() => onChange('eur')}
+          disabled={disabled}
+        >
+          € Euro
+        </button>
+      </div>
+    </div>
+  )
 }

@@ -431,6 +431,52 @@ input:focus-visible {
   opacity: 0.85;
 }
 
+.target-currency-selector {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.target-currency-selector__label {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+}
+
+.target-currency-selector__group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.target-currency-selector__option {
+  min-height: 36px;
+  padding: 6px 12px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+  transition: all 0.15s ease;
+}
+
+.target-currency-selector__option:hover:not(:disabled):not(.target-currency-selector__option--active) {
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+}
+
+.target-currency-selector__option--active {
+  color: var(--color-selector-active-text);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.target-currency-selector__option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .calculator-input,
 .calculator-input--custom {
   display: flex;
