@@ -53,24 +53,18 @@ function sanitizeBsInputDecimal(value) {
   let cleaned = value.replace(/[^\d.,]/g, '')
   if (!cleaned) return ''
 
+  // In Bs, periods are thousands separators and commas are decimal separators.
+  // This keeps deleting from "40.000" on the integer path instead of creating "40,00".
+  cleaned = cleaned.replace(/\./g, '')
   const commaIdx = cleaned.indexOf(',')
 
   if (commaIdx !== -1) {
-    const intPart = cleaned.slice(0, commaIdx).replace(/\./g, '')
+    const intPart = cleaned.slice(0, commaIdx).replace(/[^\d]/g, '')
     const decPart = cleaned.slice(commaIdx + 1).replace(/[^\d]/g, '').slice(0, 2)
     return intPart + ',' + decPart
   }
 
-  const lastDotIdx = cleaned.lastIndexOf('.')
-  if (lastDotIdx === -1) return cleaned
-
-  const afterLastDot = cleaned.slice(lastDotIdx + 1)
-  if (afterLastDot.length <= 2 && !afterLastDot.includes('.')) {
-    const intPart = cleaned.slice(0, lastDotIdx).replace(/\./g, '')
-    return intPart + ',' + afterLastDot
-  }
-
-  return cleaned.replace(/\./g, '')
+  return cleaned.replace(/[^\d]/g, '')
 }
 
 function sanitizeUsdInput(value) {

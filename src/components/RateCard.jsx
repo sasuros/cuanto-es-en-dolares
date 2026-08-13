@@ -42,14 +42,14 @@ export default function RateCard({ rates, usdt = null, loading, error }) {
   const pills = [
     {
       key: 'usd-bcv',
-      label: '$ BCV',
+      label: 'DÓLAR BCV',
       value: usdBcv.tasa,
       tone: 'primary',
       variation: getVariation(usdBcv.tasa, previousRates?.usd?.bcv?.tasa)
     },
     eurBcv && {
       key: 'eur-bcv',
-      label: '€ BCV',
+      label: 'EURO BCV',
       value: eurBcv.tasa,
       tone: 'blue',
       variation: getVariation(eurBcv.tasa, previousRates?.eur?.bcv?.tasa)

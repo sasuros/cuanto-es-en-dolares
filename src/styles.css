@@ -307,11 +307,12 @@ input:focus-visible {
 .rate-card__pill-label {
   display: block;
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.05em;
   line-height: 1.1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .rate-card__pill-value {

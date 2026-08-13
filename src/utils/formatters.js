@@ -72,23 +72,18 @@ export function formatBolivares(value) {
 
 export function parseBolivares(str) {
   if (!str) return 0
-  // v0.4.2: parsea "12.058,55" → 12058.55 (float)
   const cleaned = String(str).replace(/[^\d.,]/g, '')
   if (!cleaned) return 0
 
-  // El separador decimal es el ÚLTIMO , o . que aparece.
-  const lastComma = cleaned.lastIndexOf(',')
-  const lastDot = cleaned.lastIndexOf('.')
-  const lastSep = Math.max(lastComma, lastDot)
-
-  let normalized
-  if (lastSep === -1) {
-    normalized = cleaned.replace(/[^\d]/g, '')
-  } else {
-    const intPart = cleaned.slice(0, lastSep).replace(/[^\d]/g, '')
-    const decPart = cleaned.slice(lastSep + 1).replace(/[^\d]/g, '')
-    normalized = (intPart || '0') + '.' + (decPart || '0')
-  }
+  // In Bs, periods group thousands and a comma is the decimal separator.
+  const withoutThousands = cleaned.replace(/\./g, '')
+  const commaIdx = withoutThousands.indexOf(',')
+  const intPart = (commaIdx === -1 ? withoutThousands : withoutThousands.slice(0, commaIdx))
+    .replace(/[^\d]/g, '')
+  const decPart = commaIdx === -1
+    ? ''
+    : withoutThousands.slice(commaIdx + 1).replace(/[^\d]/g, '').slice(0, 2)
+  const normalized = intPart + (commaIdx === -1 ? '' : `.${decPart || '0'}`)
 
   const num = parseFloat(normalized)
   return Number.isFinite(num) ? num : 0
