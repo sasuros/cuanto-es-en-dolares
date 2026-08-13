@@ -7,7 +7,7 @@ import {
   getRateValidity
 } from '../utils/formatters'
 
-const euroFormatter = new Intl.NumberFormat('de-DE', {
+const euroFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'EUR',
   minimumFractionDigits: 2,
