@@ -3,11 +3,17 @@ import ModeSelector from './components/ModeSelector.jsx'
 import CalculatorInput from './components/CalculatorInput.jsx'
 import ResultDisplay from './components/ResultDisplay.jsx'
 import RateCard from './components/RateCard.jsx'
+import TapeList from './components/TapeList.jsx'
+import ConfirmModal from './components/ConfirmModal.jsx'
 import {
   clearObsoleteRateCaches,
   fetchAllRatesForCalculation,
   getFriendlyErrorMessage
 } from './services/apiService.js'
+import {
+  buildTapeSnapshot,
+  getCurrentRateForContext
+} from './utils/tape.js'
 
 const THEME_STORAGE_KEY = 'theme-preference'
 const BS_TARGET_CURRENCY_STORAGE_KEY = 'bs-target-currency'
@@ -61,6 +67,9 @@ export default function App() {
   const [usdtRate, setUsdtRate] = useState(null)
   const [ratesLoading, setRatesLoading] = useState(true)
   const [ratesError, setRatesError] = useState(null)
+  const [tape, setTape] = useState([])
+  const [pendingTapeEntry, setPendingTapeEntry] = useState(null)
+  const [lastValidTapeSnapshot, setLastValidTapeSnapshot] = useState(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -116,6 +125,20 @@ export default function App() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    if (tape.length === 0) {
+      setLastValidTapeSnapshot(null)
+      return
+    }
+
+    const rate = getCurrentRateForContext(tape[0].contextKey, rates, result)
+    const snapshot = buildTapeSnapshot(tape, rate)
+
+    if (snapshot) {
+      setLastValidTapeSnapshot(snapshot)
+    }
+  }, [tape, rates, result])
+
   function handleModeChange(newMode) {
     if (newMode === mode) return
     setMode(newMode)
@@ -140,6 +163,53 @@ export default function App() {
     if (currency === bsTargetCurrency) return
     setBsTargetCurrency(currency)
     writeBsTargetCurrency(currency)
+  }
+
+  function addToTape(entry) {
+    if (tape.length === 0 || entry.contextKey === tape[0].contextKey) {
+      setTape(currentTape => [...currentTape, entry])
+      return
+    }
+
+    setPendingTapeEntry(entry)
+  }
+
+  function removeFromTape(id) {
+    setTape(currentTape => currentTape.filter(item => item.id !== id))
+  }
+
+  function clearTape() {
+    setTape([])
+    setLastValidTapeSnapshot(null)
+  }
+
+  function confirmReplaceTape() {
+    if (!pendingTapeEntry) return
+    setTape([pendingTapeEntry])
+    setPendingTapeEntry(null)
+    setLastValidTapeSnapshot(null)
+  }
+
+  function cancelReplaceTape() {
+    setPendingTapeEntry(null)
+  }
+
+  async function copyTapeTotal(cleanNumber) {
+    if (!cleanNumber) return
+
+    try {
+      await navigator.clipboard.writeText(cleanNumber)
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = cleanNumber
+      textArea.setAttribute('readonly', '')
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+    }
   }
 
   async function handleCalculate(amount) {
@@ -277,16 +347,38 @@ export default function App() {
             loading={loading}
             error={error}
             mode={mode}
+            onAddToTape={addToTape}
           />
         ) : (
           <section className="result-card result-card--placeholder" aria-live="polite">
             <p className="result-card__placeholder-text">Escribe un monto para calcular</p>
           </section>
         )}
+
+        <TapeList
+          tape={tape}
+          rates={rates}
+          result={result}
+          mode={mode}
+          lastValidTapeSnapshot={lastValidTapeSnapshot}
+          onRemove={removeFromTape}
+          onClear={clearTape}
+          onCopyTotal={copyTapeTotal}
+        />
       </section>
 
+      <ConfirmModal
+        open={Boolean(pendingTapeEntry)}
+        title="Cinta en otra moneda/direccion"
+        message="Esta cinta ya acumula calculos de otro contexto. Para sumar este monto hay que vaciar la cinta actual."
+        confirmLabel="Vaciar y sumar este"
+        cancelLabel="Cancelar"
+        onConfirm={confirmReplaceTape}
+        onCancel={cancelReplaceTape}
+      />
+
       <footer className="app-footer">
-        <p className="app-version">v0.11.2</p>
+        <p className="app-version">v0.12.0</p>
       </footer>
     </main>
   )

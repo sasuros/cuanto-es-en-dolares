@@ -1,21 +1,37 @@
 import { useEffect, useState } from 'react'
 import {
   formatUSD,
+  formatEUR,
   formatRate,
   formatRelativeTime,
   formatBolivares,
+  getCleanCopyValue,
   getRateValidity
 } from '../utils/formatters'
+import { createTapeEntry } from '../utils/tape'
 
-const euroFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-})
+const TAPE_TOOLTIP_KEY = 'tape-tooltip-seen'
 
-export default function ResultDisplay({ result, loading, error, mode }) {
+function readTapeTooltipSeen() {
+  try {
+    return localStorage.getItem(TAPE_TOOLTIP_KEY) === 'true'
+  } catch {
+    return true
+  }
+}
+
+function writeTapeTooltipSeen() {
+  try {
+    localStorage.setItem(TAPE_TOOLTIP_KEY, 'true')
+  } catch {
+    // Si localStorage no esta disponible, el tooltip solo vive en esta sesion.
+  }
+}
+
+export default function ResultDisplay({ result, loading, error, mode, onAddToTape }) {
   const [copied, setCopied] = useState(false)
+  const [added, setAdded] = useState(false)
+  const [tooltipVisible, setTooltipVisible] = useState(() => !readTapeTooltipSeen())
   const resultIsForeign = result ? getResultIsForeignCurrency(result, mode) : false
   const cleanCopyValue = result
     ? getCleanCopyValue(result.converted, resultIsForeign)
@@ -34,6 +50,26 @@ export default function ResultDisplay({ result, loading, error, mode }) {
   useEffect(() => {
     setCopied(false)
   }, [cleanCopyValue])
+
+  useEffect(() => {
+    if (!added) return undefined
+
+    const timeoutId = window.setTimeout(() => {
+      setAdded(false)
+    }, 1500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [added])
+
+  useEffect(() => {
+    if (!tooltipVisible) return undefined
+
+    const timeoutId = window.setTimeout(() => {
+      hideTapeTooltip(setTooltipVisible)
+    }, 4500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [tooltipVisible])
 
   if (loading) {
     return (
@@ -148,14 +184,32 @@ export default function ResultDisplay({ result, loading, error, mode }) {
           : `${formatBolivares(converted)} Bs`}
       </p>
 
-      <button
-        type="button"
-        className={`copy-button${copied ? ' copy-button--copied' : ''}`}
-        onClick={() => handleCopyResult(cleanCopyValue, setCopied)}
-        aria-label={copied ? 'Resultado copiado' : 'Copiar resultado'}
-      >
-        {copied ? '✅ Copiado' : '📋 Copiar'}
-      </button>
+      <div className="result-display__actions">
+        <button
+          type="button"
+          className={`copy-button${copied ? ' copy-button--copied' : ''}`}
+          onClick={() => handleCopyResult(cleanCopyValue, setCopied)}
+          aria-label={copied ? 'Resultado copiado' : 'Copiar resultado'}
+        >
+          {copied ? '✅ Copiado' : '📋 Copiar'}
+        </button>
+
+        <div className="add-to-tape-wrap">
+          {tooltipVisible && (
+            <div className="add-to-tape-tooltip" role="status">
+              Suma varios calculos <span aria-hidden="true">⬇️</span>
+            </div>
+          )}
+          <button
+            type="button"
+            className={`copy-button add-to-tape-button${added ? ' copy-button--copied' : ''}`}
+            onClick={() => handleAddToTape(result, mode, onAddToTape, setAdded, setTooltipVisible)}
+            aria-label={added ? 'Sumado a la cinta' : 'Sumar a mi cinta'}
+          >
+            {added ? '✅ Sumado' : '➕ Sumar'}
+          </button>
+        </div>
+      </div>
 
       <p className="result-display__bolivares">
         {resultIsForeign ? (
@@ -264,21 +318,7 @@ function getResultIsForeignCurrency(result, mode) {
 }
 
 function formatForeignCurrency(value, currency) {
-  return currency === 'eur' ? euroFormatter.format(value) : formatUSD(value)
-}
-
-function getCleanCopyValue(value, resultIsForeign) {
-  const numericValue = Number(value)
-
-  if (!Number.isFinite(numericValue)) return ''
-
-  if (resultIsForeign) {
-    return numericValue.toFixed(2)
-  }
-
-  return Number.isInteger(numericValue)
-    ? String(numericValue)
-    : String(Number(numericValue.toFixed(2)))
+  return currency === 'eur' ? formatEUR(value) : formatUSD(value)
 }
 
 async function handleCopyResult(cleanNumber, setCopied) {
@@ -299,4 +339,17 @@ async function handleCopyResult(cleanNumber, setCopied) {
   }
 
   setCopied(true)
+}
+
+function handleAddToTape(result, mode, onAddToTape, setAdded, setTooltipVisible) {
+  if (!result || !onAddToTape) return
+
+  onAddToTape(createTapeEntry(result, mode))
+  setAdded(true)
+  hideTapeTooltip(setTooltipVisible)
+}
+
+function hideTapeTooltip(setTooltipVisible) {
+  writeTapeTooltipSeen()
+  setTooltipVisible(false)
 }

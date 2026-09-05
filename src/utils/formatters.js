@@ -31,6 +31,13 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2
 })
 
+const eurFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+})
+
 export function formatBolivares(value) {
   // v0.4.1: si es número (resultado de cálculo), muestra hasta 2 decimales
   if (typeof value === 'number') {
@@ -136,6 +143,26 @@ export function formatUSD(value) {
   const num = Number(value)
   if (!Number.isFinite(num)) return '$0.00'
   return usdFormatter.format(num)
+}
+
+export function formatEUR(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '€0.00'
+  return eurFormatter.format(num)
+}
+
+export function getCleanCopyValue(value, resultIsForeign) {
+  const numericValue = Number(value)
+
+  if (!Number.isFinite(numericValue)) return ''
+
+  if (resultIsForeign) {
+    return numericValue.toFixed(2)
+  }
+
+  return Number.isInteger(numericValue)
+    ? String(numericValue)
+    : String(Number(numericValue.toFixed(2)))
 }
 
 /**
