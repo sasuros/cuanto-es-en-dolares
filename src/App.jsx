@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import ModeSelector from './components/ModeSelector.jsx'
 import CalculatorInput from './components/CalculatorInput.jsx'
 import ResultDisplay from './components/ResultDisplay.jsx'
 import RateCard from './components/RateCard.jsx'
 import TapeList from './components/TapeList.jsx'
 import ConfirmModal from './components/ConfirmModal.jsx'
+import TargetCurrencySelector from './components/TargetCurrencySelector.jsx'
+
+// Recharts pesa ~110kB gzip: se carga solo la primera vez que se abre
+// la pestana Historico, no en el arranque de la calculadora.
+const HistoryView = lazy(() => import('./components/HistoryView.jsx'))
 import {
   clearObsoleteRateCaches,
   fetchAllRatesForCalculation,
@@ -58,6 +63,8 @@ function writeBsTargetCurrency(currency) {
 
 export default function App() {
   const [theme, setTheme] = useState(() => readThemePreference())
+  const [activeTab, setActiveTab] = useState('calculadora')
+  const [hasOpenedHistorico, setHasOpenedHistorico] = useState(false)
   const [mode, setMode] = useState('bs-to-usd')
   const [bsTargetCurrency, setBsTargetCurrency] = useState(() => readBsTargetCurrency())
   const [result, setResult] = useState(null)
@@ -149,6 +156,11 @@ export default function App() {
   function handleClear() {
     setResult(null)
     setError(null)
+  }
+
+  function handleTabChange(nextTab) {
+    setActiveTab(nextTab)
+    if (nextTab === 'historico') setHasOpenedHistorico(true)
   }
 
   function handleThemeToggle() {
@@ -306,7 +318,28 @@ export default function App() {
         </button>
       </header>
 
-      <section className="app-content">
+      <nav className="app-tabs" role="tablist" aria-label="Secciones">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'calculadora'}
+          className={`app-tabs__option${activeTab === 'calculadora' ? ' app-tabs__option--active' : ''}`}
+          onClick={() => handleTabChange('calculadora')}
+        >
+          🧮 Calculadora
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'historico'}
+          className={`app-tabs__option${activeTab === 'historico' ? ' app-tabs__option--active' : ''}`}
+          onClick={() => handleTabChange('historico')}
+        >
+          📈 Histórico
+        </button>
+      </nav>
+
+      <section className="app-content" hidden={activeTab !== 'calculadora'}>
         <RateCard
           rates={rates}
           usdt={usdtRate}
@@ -367,6 +400,14 @@ export default function App() {
         />
       </section>
 
+      {hasOpenedHistorico && (
+        <section className="app-content" hidden={activeTab !== 'historico'}>
+          <Suspense fallback={<div className="history-status" role="status">Cargando histórico...</div>}>
+            <HistoryView />
+          </Suspense>
+        </section>
+      )}
+
       <ConfirmModal
         open={Boolean(pendingTapeEntry)}
         title="Cinta en otra moneda/direccion"
@@ -378,7 +419,7 @@ export default function App() {
       />
 
       <footer className="app-footer">
-        <p className="app-version">v0.13.0</p>
+        <p className="app-version">v0.14.1</p>
       </footer>
     </main>
   )
@@ -391,34 +432,4 @@ function getModeCurrency(mode, bsTargetCurrency) {
 
 function getModeDirection(mode) {
   return mode === 'bs-to-usd' || mode === 'bs-to-eur' ? 'from-bs' : 'to-bs'
-}
-
-function TargetCurrencySelector({ value, onChange, disabled }) {
-  return (
-    <div className="target-currency-selector">
-      <span className="target-currency-selector__label">Convertir a:</span>
-      <div className="target-currency-selector__group" role="radiogroup" aria-label="Moneda destino">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={value === 'usd'}
-          className={`target-currency-selector__option${value === 'usd' ? ' target-currency-selector__option--active' : ''}`}
-          onClick={() => onChange('usd')}
-          disabled={disabled}
-        >
-          $ Dólar
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={value === 'eur'}
-          className={`target-currency-selector__option${value === 'eur' ? ' target-currency-selector__option--active' : ''}`}
-          onClick={() => onChange('eur')}
-          disabled={disabled}
-        >
-          € Euro
-        </button>
-      </div>
-    </div>
-  )
 }

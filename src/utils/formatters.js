@@ -249,7 +249,7 @@ function parseIsoDate(str) {
   return { year, month, day }
 }
 
-function todayInVenezuela() {
+export function todayInVenezuela() {
   // Forzamos zona horaria America/Caracas — no usamos el reloj del usuario
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Caracas',

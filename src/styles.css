@@ -105,6 +105,14 @@ html[data-theme="light"] {
   padding: 0;
 }
 
+/* v0.14.1: sin esto, cualquier clase que ponga display: X en el mismo
+   elemento (ej. .app-content { display: flex }) le gana al display:none
+   del atributo hidden en la cascada (autor > user-agent, sin importar
+   especificidad) y el contenido "oculto" se sigue viendo. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -215,6 +223,38 @@ input:focus-visible {
   transform: scale(0.97);
 }
 
+.app-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-selector-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.app-tabs__option {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-tabs__option--active {
+  color: var(--color-selector-active-text);
+  background: var(--color-selector-active);
+}
+
+.app-tabs__option:hover:not(.app-tabs__option--active) {
+  color: var(--color-text);
+  background: var(--color-selector-inactive-hover);
+}
+
 .app-content {
   display: flex;
   flex: 1;
@@ -226,7 +266,9 @@ input:focus-visible {
 .calc-card,
 .result-card,
 .result-display,
-.tape-card {
+.tape-card,
+.history-chart-card,
+.history-date-card {
   background: var(--color-card-bg);
   border: 1px solid var(--color-card-border);
   border-radius: var(--radius-xl);
@@ -1392,6 +1434,242 @@ html[data-theme="light"] .confirm-modal__overlay {
   opacity: 0.5;
 }
 
+.history-chart-card,
+.history-date-card {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.history-chart-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.history-status {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-soft);
+  font-size: 14px;
+  text-align: center;
+}
+
+.history-chart {
+  width: 100%;
+}
+
+.history-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.history-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.history-legend__swatch {
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.history-legend__swatch--bcv {
+  background: var(--color-primary);
+}
+
+.history-legend__swatch--paralelo {
+  background: var(--color-text-soft);
+}
+
+.history-days-list {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.history-days-list__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-2);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.history-days-list__row:last-child {
+  border-bottom: none;
+}
+
+.history-days-list__row--header {
+  color: var(--color-text-soft);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.history-days-list__date {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.history-days-list__value {
+  color: var(--color-text);
+  font-family: var(--font-family-numbers);
+  font-size: 14px;
+}
+
+.history-tooltip {
+  padding: 8px 12px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  font-size: 12px;
+}
+
+.history-tooltip__date {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: 4px;
+}
+
+.history-tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  font-family: var(--font-family-numbers);
+}
+
+.history-tooltip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.history-tooltip__dot--bcv {
+  background: var(--color-primary);
+}
+
+.history-tooltip__dot--paralelo {
+  background: var(--color-text-soft);
+}
+
+.history-date__input {
+  min-height: 44px;
+  padding: 8px 12px;
+  width: 100%;
+  color: var(--color-text);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-family: var(--font-family);
+}
+
+.history-date__input:focus-visible {
+  border-color: var(--color-primary);
+}
+
+.history-date__input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+html[data-theme="light"] .history-date__input::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+.history-date__label {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.history-date__status {
+  color: var(--color-text-soft);
+  font-size: 13px;
+}
+
+.history-result-card {
+  padding-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.history-result-card__date {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.history-result-card__columns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+.history-result-card__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.history-result-card__label {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.history-result-card__value {
+  color: var(--color-text);
+  font-family: var(--font-family-numbers);
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.1;
+}
+
+.history-result-card__value--bcv {
+  color: var(--color-primary);
+}
+
+.history-result-card__unit {
+  color: var(--color-text-soft);
+  font-size: 12px;
+}
+
+.history-result-card__gap {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+}
+
 @media (max-width: 420px) {
   .app {
     padding-left: var(--space-4);
@@ -1402,7 +1680,9 @@ html[data-theme="light"] .confirm-modal__overlay {
   .calc-card,
   .result-display,
   .result-card,
-  .tape-card {
+  .tape-card,
+  .history-chart-card,
+  .history-date-card {
     padding: var(--space-5);
   }
 
