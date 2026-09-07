@@ -10,9 +10,22 @@ import {
   buildTapeSnapshot,
   calculateTapeLine,
   getCurrentRateForContext,
-  parseContextKey
+  parseContextKey,
+  splitAmount
 } from '../utils/tape'
 import ConfirmModal from './ConfirmModal.jsx'
+
+const splitBsFormatter = new Intl.NumberFormat('es-VE', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+})
+
+function formatSplitBs(value) {
+  return `${splitBsFormatter.format(value)} Bs`
+}
+
+const MIN_DIVIDER_PEOPLE = 2
+const MAX_DIVIDER_PEOPLE = 50
 
 export default function TapeList({
   tape,
@@ -26,6 +39,9 @@ export default function TapeList({
 }) {
   const [clearModalOpen, setClearModalOpen] = useState(false)
   const [isTotalVisible, setIsTotalVisible] = useState(true)
+  const [showDivider, setShowDivider] = useState(false)
+  const [dividerPeople, setDividerPeople] = useState(MIN_DIVIDER_PEOPLE)
+  const [dividerCopied, setDividerCopied] = useState(false)
   const sectionRef = useRef(null)
   const totalRef = useRef(null)
   const activeContextKey = tape[0]?.contextKey || ''
@@ -55,6 +71,12 @@ export default function TapeList({
     observer.observe(node)
     return () => observer.disconnect()
   }, [tape.length])
+
+  useEffect(() => {
+    if (!dividerCopied) return undefined
+    const timeoutId = window.setTimeout(() => setDividerCopied(false), 1500)
+    return () => window.clearTimeout(timeoutId)
+  }, [dividerCopied])
 
   if (tape.length === 0) return null
   const snapshot = liveSnapshot || fallbackSnapshot
@@ -92,6 +114,41 @@ export default function TapeList({
   const bsTotal = context.direction === 'from-bs' ? inputTotal : outputTotal
   const moneyTotal = context.direction === 'from-bs' ? outputTotal : inputTotal
   const moneySymbol = context.currency === 'eur' ? '€' : '$'
+
+  const bsSplit = bsTotal === undefined ? null : splitAmount(bsTotal, dividerPeople)
+  const moneySplit = moneyTotal === undefined ? null : splitAmount(moneyTotal, dividerPeople)
+  const formatMoney = value => (context.currency === 'eur' ? formatEUR(value) : formatUSD(value))
+
+  function handleIncrementPeople() {
+    setDividerPeople(current => Math.min(MAX_DIVIDER_PEOPLE, current + 1))
+  }
+
+  function handleDecrementPeople() {
+    setDividerPeople(current => Math.max(MIN_DIVIDER_PEOPLE, current - 1))
+  }
+
+  function buildDividerCopyText() {
+    if (!bsSplit && !moneySplit) return ''
+
+    const lines = [`Cuenta dividida entre ${dividerPeople}:`]
+    const bsPart = bsSplit ? formatSplitBs(bsSplit.base) : 'No disponible'
+    const moneyPart = moneySplit ? ` (${formatMoney(moneySplit.base)})` : ''
+    lines.push(`Cada uno: ${bsPart}${moneyPart}`)
+
+    if (bsSplit && !bsSplit.allEqual) {
+      const verb = bsSplit.remainderCount === 1 ? 'paga' : 'pagan'
+      lines.push(`(${bsSplit.remainderCount} ${verb} ${formatSplitBs(bsSplit.extra)})`)
+    }
+
+    return lines.join('\n')
+  }
+
+  function handleCopyDivider() {
+    const text = buildDividerCopyText()
+    if (!text) return
+    onCopyTotal(text)
+    setDividerCopied(true)
+  }
 
   return (
     <>
@@ -145,6 +202,73 @@ export default function TapeList({
             </strong>
           </div>
         </div>
+
+        {!showDivider && (
+          <button
+            type="button"
+            className="tape-divider-toggle"
+            onClick={() => setShowDivider(true)}
+          >
+            👥 Dividir cuenta
+          </button>
+        )}
+
+        {showDivider && (
+          <div className="tape-divider">
+            <div className="tape-divider__stepper">
+              <button
+                type="button"
+                className="tape-divider__stepper-btn"
+                onClick={handleDecrementPeople}
+                disabled={dividerPeople <= MIN_DIVIDER_PEOPLE}
+                aria-label="Menos personas"
+              >
+                −
+              </button>
+              <span className="tape-divider__count tabular-nums">{dividerPeople}</span>
+              <button
+                type="button"
+                className="tape-divider__stepper-btn"
+                onClick={handleIncrementPeople}
+                disabled={dividerPeople >= MAX_DIVIDER_PEOPLE}
+                aria-label="Más personas"
+              >
+                +
+              </button>
+            </div>
+
+            <div className="tape-divider__result">
+              <span className="tape-divider__label">Cada uno paga</span>
+              <strong className="tape-divider__amount tabular-nums">
+                {bsSplit ? formatSplitBs(bsSplit.base) : 'No disponible'}
+                {moneySplit ? ` (${formatMoney(moneySplit.base)})` : ''}
+              </strong>
+              {bsSplit && !bsSplit.allEqual && (
+                <p className="tape-divider__note">
+                  ({bsSplit.remainderCount} {bsSplit.remainderCount === 1 ? 'paga' : 'pagan'} {formatSplitBs(bsSplit.extra)})
+                </p>
+              )}
+            </div>
+
+            <div className="tape-divider__actions">
+              <button
+                type="button"
+                className={`copy-button${dividerCopied ? ' copy-button--copied' : ''}`}
+                onClick={handleCopyDivider}
+                disabled={!bsSplit && !moneySplit}
+              >
+                {dividerCopied ? '✅ Copiado' : '📋 Copiar reparto'}
+              </button>
+              <button
+                type="button"
+                className="tape-card__clear"
+                onClick={() => setShowDivider(false)}
+              >
+                ✕ Cerrar división
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="tape-card__actions">
           <button

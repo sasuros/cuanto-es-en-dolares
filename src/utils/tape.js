@@ -69,6 +69,20 @@ export function buildTapeSnapshot(tape, rate) {
   }
 }
 
+export function splitAmount(total, people) {
+  const totalCents = Math.round(Number(total) * 100)
+  const safePeople = Math.max(1, Math.trunc(Number(people) || 1))
+  const baseCents = Math.floor(totalCents / safePeople)
+  const remainderCount = totalCents - baseCents * safePeople
+
+  return {
+    base: baseCents / 100,
+    extra: (baseCents + 1) / 100,
+    remainderCount,
+    allEqual: remainderCount === 0
+  }
+}
+
 export function createTapeEntry(result, mode) {
   const id = (typeof crypto !== 'undefined' && crypto.randomUUID?.()) ||
     `${Date.now()}-${Math.random().toString(36).slice(2)}`

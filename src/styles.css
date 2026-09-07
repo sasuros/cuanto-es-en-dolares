@@ -1064,6 +1064,119 @@ input:focus-visible {
   line-height: 1.1;
 }
 
+.tape-divider-toggle {
+  min-height: 42px;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  align-self: flex-start;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.tape-divider-toggle:hover,
+.tape-divider-toggle:focus-visible {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.tape-divider {
+  padding-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.tape-divider__stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.tape-divider__stepper-btn {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text);
+  background: var(--color-pill-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.tape-divider__stepper-btn:hover:not(:disabled),
+.tape-divider__stepper-btn:focus-visible:not(:disabled) {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.tape-divider__stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tape-divider__count {
+  min-width: 24px;
+  color: var(--color-text);
+  font-family: var(--font-family-numbers);
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+}
+
+.tape-divider__result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tape-divider__label {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tape-divider__amount {
+  color: var(--color-primary);
+  font-family: var(--font-family-numbers);
+  font-size: 22px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+
+.tape-divider__note {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.tape-divider__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .tape-fab {
   position: fixed;
   left: 50%;

@@ -378,7 +378,7 @@ export default function App() {
       />
 
       <footer className="app-footer">
-        <p className="app-version">v0.12.1</p>
+        <p className="app-version">v0.13.0</p>
       </footer>
     </main>
   )
