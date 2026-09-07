@@ -1031,33 +1031,65 @@ input:focus-visible {
   padding-top: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
 
-.tape-total__row {
+.tape-total__block {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--color-text-secondary);
-  font-size: 14px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.tape-total__input {
+.tape-total__label {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tape-total__value {
   color: var(--color-text);
   font-family: var(--font-family-numbers);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
 }
 
-.tape-total__destination {
+.tape-total__value--money {
   color: var(--color-primary);
-  font-family: var(--font-family-numbers);
   font-size: 28px;
   font-weight: var(--font-weight-bold);
   line-height: 1.1;
-  text-align: right;
+}
+
+.tape-fab {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 0);
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 12px 20px;
+  color: #FFFFFF;
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  box-shadow: var(--shadow-card), 0 8px 24px rgba(0, 0, 0, 0.25);
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.tape-fab--hidden {
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
 }
 
 .tape-card__actions {
@@ -1277,13 +1309,9 @@ html[data-theme="light"] .confirm-modal__overlay {
     font-size: 42px;
   }
 
-  .tape-total__row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .tape-total__destination {
-    text-align: left;
+  .tape-fab {
+    padding: 10px 16px;
+    font-size: 13px;
   }
 }
 

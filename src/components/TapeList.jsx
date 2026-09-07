@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   formatBolivares,
   formatUSD,
@@ -25,6 +25,9 @@ export default function TapeList({
   onCopyTotal
 }) {
   const [clearModalOpen, setClearModalOpen] = useState(false)
+  const [isTotalVisible, setIsTotalVisible] = useState(true)
+  const sectionRef = useRef(null)
+  const totalRef = useRef(null)
   const activeContextKey = tape[0]?.contextKey || ''
   const context = parseContextKey(activeContextKey)
   const rate = getCurrentRateForContext(activeContextKey, rates, result)
@@ -36,6 +39,22 @@ export default function TapeList({
     () => buildFallbackSnapshot(tape, lastValidTapeSnapshot),
     [tape, lastValidTapeSnapshot]
   )
+
+  useEffect(() => {
+    const node = totalRef.current
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setIsTotalVisible(true)
+      return undefined
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsTotalVisible(entry.isIntersecting),
+      { threshold: 0.6 }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [tape.length])
 
   if (tape.length === 0) return null
   const snapshot = liveSnapshot || fallbackSnapshot
@@ -66,84 +85,106 @@ export default function TapeList({
     onClear()
   }
 
+  function handleScrollToTotal() {
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const bsTotal = context.direction === 'from-bs' ? inputTotal : outputTotal
+  const moneyTotal = context.direction === 'from-bs' ? outputTotal : inputTotal
+  const moneySymbol = context.currency === 'eur' ? '€' : '$'
+
   return (
-    <section className="tape-card" aria-label="Mi cinta" data-mode={mode}>
-      <div className="tape-card__header">
-        <div>
-          <h2 className="tape-card__title">🧾 Mi cinta</h2>
-          <p className="tape-card__context">{getContextLabel(context)}</p>
+    <>
+      <section className="tape-card" aria-label="Sumatoria" data-mode={mode} ref={sectionRef}>
+        <div className="tape-card__header">
+          <div>
+            <h2 className="tape-card__title">🧾 Sumatoria</h2>
+            <p className="tape-card__context">{getContextLabel(context)}</p>
+          </div>
+          <span className="tape-card__counter">{tape.length}</span>
         </div>
-        <span className="tape-card__counter">{tape.length}</span>
-      </div>
 
-      {usingFallback && (
-        <div className="tape-card__warning" role="status">
-          <span aria-hidden="true">⚠️</span>
-          <span>tasa no disponible</span>
+        {usingFallback && (
+          <div className="tape-card__warning" role="status">
+            <span aria-hidden="true">⚠️</span>
+            <span>tasa no disponible</span>
+          </div>
+        )}
+
+        {rate && (
+          <p className="tape-card__rate">
+            Tasa actual: <strong>{formatRate(rate)}</strong> Bs/{context.currency === 'eur' ? 'EUR' : 'USD'}
+          </p>
+        )}
+
+        <div className="tape-list">
+          {tape.map(item => (
+            <TapeItem
+              key={item.id}
+              item={item}
+              rate={rate}
+              fallbackValue={snapshot?.lines?.find(line => line.id === item.id)?.value}
+              onRemove={onRemove}
+            />
+          ))}
         </div>
-      )}
 
-      {rate && (
-        <p className="tape-card__rate">
-          Tasa actual: <strong>{formatRate(rate)}</strong> Bs/{context.currency === 'eur' ? 'EUR' : 'USD'}
-        </p>
-      )}
-
-      <div className="tape-list">
-        {tape.map(item => (
-          <TapeItem
-            key={item.id}
-            item={item}
-            rate={rate}
-            fallbackValue={snapshot?.lines?.find(line => line.id === item.id)?.value}
-            onRemove={onRemove}
-          />
-        ))}
-      </div>
-
-      <div className="tape-total">
-        <div className="tape-total__row">
-          <span>Total entrada</span>
-          <strong className="tape-total__input tabular-nums">
-            {formatInputAmount(inputTotal, context)}
-          </strong>
+        <div className="tape-total" ref={totalRef}>
+          <div className="tape-total__block">
+            <span className="tape-total__label">Total Bs</span>
+            <strong className="tape-total__value tabular-nums">
+              {bsTotal === undefined ? 'No disponible' : `${formatBolivares(bsTotal)} Bs`}
+            </strong>
+          </div>
+          <div className="tape-total__block">
+            <span className="tape-total__label">Total {moneySymbol}</span>
+            <strong className="tape-total__value tape-total__value--money tabular-nums">
+              {moneyTotal === undefined
+                ? 'No disponible'
+                : (context.currency === 'eur' ? formatEUR(moneyTotal) : formatUSD(moneyTotal))}
+            </strong>
+          </div>
         </div>
-        <div className="tape-total__row tape-total__row--destination">
-          <span>Total destino</span>
-          <strong className="tape-total__destination tabular-nums">
-            {outputTotal === undefined ? 'No disponible' : formatOutputAmount(outputTotal, context)}
-          </strong>
+
+        <div className="tape-card__actions">
+          <button
+            type="button"
+            className="copy-button"
+            onClick={handleCopyTotal}
+            disabled={!cleanCopyValue}
+          >
+            📋 Copiar total
+          </button>
+          <button
+            type="button"
+            className="tape-card__clear"
+            onClick={handleClearClick}
+          >
+            🗑️ Vaciar sumatoria
+          </button>
         </div>
-      </div>
 
-      <div className="tape-card__actions">
-        <button
-          type="button"
-          className="copy-button"
-          onClick={handleCopyTotal}
-          disabled={!cleanCopyValue}
-        >
-          📋 Copiar total
-        </button>
-        <button
-          type="button"
-          className="tape-card__clear"
-          onClick={handleClearClick}
-        >
-          🗑️ Vaciar cinta
-        </button>
-      </div>
+        <ConfirmModal
+          open={clearModalOpen}
+          title="Vaciar sumatoria"
+          message="Esto elimina todos los calculos acumulados en esta sumatoria."
+          confirmLabel="Vaciar sumatoria"
+          cancelLabel="Cancelar"
+          onConfirm={handleConfirmClear}
+          onCancel={() => setClearModalOpen(false)}
+        />
+      </section>
 
-      <ConfirmModal
-        open={clearModalOpen}
-        title="Vaciar cinta"
-        message="Esto elimina todos los calculos acumulados en esta cinta."
-        confirmLabel="Vaciar cinta"
-        cancelLabel="Cancelar"
-        onConfirm={handleConfirmClear}
-        onCancel={() => setClearModalOpen(false)}
-      />
-    </section>
+      <button
+        type="button"
+        className={`tape-fab${isTotalVisible ? ' tape-fab--hidden' : ''}`}
+        onClick={handleScrollToTotal}
+        aria-hidden={isTotalVisible}
+        tabIndex={isTotalVisible ? -1 : 0}
+      >
+        🧾 Ver sumatoria ({tape.length}) ↓
+      </button>
+    </>
   )
 }
 
