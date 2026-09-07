@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Calendar, RefreshCw } from 'lucide-react'
 import {
   CartesianGrid,
   Line,
@@ -229,7 +230,7 @@ export default function HistoryView() {
           <div className="history-status" role="alert">
             <p>{seriesError}</p>
             <button type="button" className="copy-button" onClick={handleRetry}>
-              🔄 Reintentar
+              <RefreshCw size={16} strokeWidth={1.5} aria-hidden="true" /> Reintentar
             </button>
           </div>
         )}
@@ -313,7 +314,7 @@ export default function HistoryView() {
 
       <section className="history-date-card" aria-label="Consultar tasa por fecha">
         <label className="history-date__label" htmlFor="history-date-input">
-          📅 Toca para elegir una fecha
+          <Calendar size={16} strokeWidth={1.5} aria-hidden="true" /> Toca para elegir una fecha
         </label>
         <input
           id="history-date-input"

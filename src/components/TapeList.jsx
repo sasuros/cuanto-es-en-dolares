@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Check,
+  ChevronDown,
+  Copy,
+  Receipt,
+  Trash2,
+  TriangleAlert,
+  Users,
+  X
+} from 'lucide-react'
+import {
   formatBolivares,
   formatUSD,
   formatEUR,
@@ -155,7 +165,9 @@ export default function TapeList({
       <section className="tape-card" aria-label="Sumatoria" data-mode={mode} ref={sectionRef}>
         <div className="tape-card__header">
           <div>
-            <h2 className="tape-card__title">🧾 Sumatoria</h2>
+            <h2 className="tape-card__title">
+              <Receipt size={18} strokeWidth={1.5} aria-hidden="true" /> Sumatoria
+            </h2>
             <p className="tape-card__context">{getContextLabel(context)}</p>
           </div>
           <span className="tape-card__counter">{tape.length}</span>
@@ -163,7 +175,7 @@ export default function TapeList({
 
         {usingFallback && (
           <div className="tape-card__warning" role="status">
-            <span aria-hidden="true">⚠️</span>
+            <TriangleAlert size={16} strokeWidth={1.5} aria-hidden="true" />
             <span>tasa no disponible</span>
           </div>
         )}
@@ -209,7 +221,7 @@ export default function TapeList({
             className="tape-divider-toggle"
             onClick={() => setShowDivider(true)}
           >
-            👥 Dividir cuenta
+            <Users size={16} strokeWidth={1.5} aria-hidden="true" /> Dividir cuenta
           </button>
         )}
 
@@ -257,14 +269,16 @@ export default function TapeList({
                 onClick={handleCopyDivider}
                 disabled={!bsSplit && !moneySplit}
               >
-                {dividerCopied ? '✅ Copiado' : '📋 Copiar reparto'}
+                {dividerCopied
+                  ? <><Check size={16} strokeWidth={1.5} aria-hidden="true" /> Copiado</>
+                  : <><Copy size={16} strokeWidth={1.5} aria-hidden="true" /> Copiar reparto</>}
               </button>
               <button
                 type="button"
                 className="tape-card__clear"
                 onClick={() => setShowDivider(false)}
               >
-                ✕ Cerrar división
+                <X size={16} strokeWidth={1.5} aria-hidden="true" /> Cerrar división
               </button>
             </div>
           </div>
@@ -277,14 +291,14 @@ export default function TapeList({
             onClick={handleCopyTotal}
             disabled={!cleanCopyValue}
           >
-            📋 Copiar total
+            <Copy size={16} strokeWidth={1.5} aria-hidden="true" /> Copiar total
           </button>
           <button
             type="button"
             className="tape-card__clear"
             onClick={handleClearClick}
           >
-            🗑️ Vaciar sumatoria
+            <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" /> Vaciar sumatoria
           </button>
         </div>
 
@@ -306,7 +320,9 @@ export default function TapeList({
         aria-hidden={isTotalVisible}
         tabIndex={isTotalVisible ? -1 : 0}
       >
-        🧾 Ver sumatoria ({tape.length}) ↓
+        <Receipt size={18} strokeWidth={1.5} aria-hidden="true" />
+        Ver sumatoria ({tape.length})
+        <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
       </button>
     </>
   )
@@ -333,7 +349,7 @@ function TapeItem({ item, rate, fallbackValue, onRemove }) {
         onClick={() => onRemove(item.id)}
         aria-label="Eliminar de la cinta"
       >
-        ❌
+        <X size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
     </div>
   )

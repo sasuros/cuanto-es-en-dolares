@@ -1,3 +1,4 @@
+import { CircleCheck, TrendingDown, TrendingUp } from 'lucide-react'
 import {
   formatRate,
   formatRelativeTime,
@@ -35,8 +36,9 @@ export default function RateCard({ rates, usdt = null, loading, error }) {
   const validity = getRateValidity(usdBcv.fecha)
   const publishedDate = formatPublishedDate(usdBcv.fecha)
   const relativeTime = formatRelativeTime(usdBcv.fetchedAt)
-  const badgeText = validity === 'today'
-    ? `✅ HOY${publishedDate ? ` · ${publishedDate}` : ''}`
+  const isToday = validity === 'today'
+  const badgeText = isToday
+    ? `HOY${publishedDate ? ` · ${publishedDate}` : ''}`
     : publishedDate || 'Tasa vigente'
 
   const pills = [
@@ -67,7 +69,10 @@ export default function RateCard({ rates, usdt = null, loading, error }) {
     <section className="rate-card" aria-label="Tasas de hoy">
       <div className="rate-card__header">
         <p className="rate-card__title">Tasas de hoy</p>
-        <p className="rate-card__badge">{badgeText}</p>
+        <p className="rate-card__badge">
+          {isToday && <CircleCheck size={14} aria-hidden="true" />}
+          {badgeText}
+        </p>
       </div>
 
       <div className={`rate-card__grid rate-card__grid--${pills.length}`}>
@@ -95,7 +100,10 @@ function RatePill({ label, value, tone, variation }) {
             (variation.isLower ? 'rate-card__pill-variation--lower' : 'rate-card__pill-variation--higher')
           }
         >
-          {variation.isLower ? '▼' : '▲'} {Math.abs(variation.percent).toFixed(2)}%
+          {variation.isLower
+            ? <TrendingDown size={14} strokeWidth={1.5} aria-hidden="true" />
+            : <TrendingUp size={14} strokeWidth={1.5} aria-hidden="true" />}
+          <span>{Math.abs(variation.percent).toFixed(2)}%</span>
         </span>
       )}
     </div>

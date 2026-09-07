@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
 import {
+  AlarmClock,
+  Check,
+  ChevronDown,
+  CircleCheck,
+  Copy,
+  Hourglass,
+  Plus,
+  TriangleAlert
+} from 'lucide-react'
+import {
   formatUSD,
   formatEUR,
   formatRate,
@@ -79,7 +89,7 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
         aria-live="polite"
       >
         <div className="result-display__spinner-placeholder" aria-hidden="true">
-          ⏳
+          <Hourglass size={32} strokeWidth={1.5} />
         </div>
         <p className="result-display__loading-text">Buscando tasa actual...</p>
       </div>
@@ -93,7 +103,9 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
         role="status"
         aria-live="polite"
       >
-        <p className="result-display__no-valid-icon" aria-hidden="true">⏰</p>
+        <p className="result-display__no-valid-icon" aria-hidden="true">
+          <AlarmClock size={32} strokeWidth={1.5} />
+        </p>
         <p className="result-display__no-valid-title">Tasa no disponible aun</p>
         <p className="result-display__no-valid-text">
           El BCV publica la tasa del dia despues de las 4 PM.
@@ -123,7 +135,9 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
         role="alert"
         aria-live="assertive"
       >
-        <p className="result-display__error-icon" aria-hidden="true">⚠️</p>
+        <p className="result-display__error-icon" aria-hidden="true">
+          <TriangleAlert size={32} strokeWidth={1.5} />
+        </p>
         <p className="result-display__error-text">{message}</p>
       </div>
     )
@@ -169,7 +183,7 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
     >
       {isFuture && (
         <div className="result-display__future-badge" role="status">
-          <span aria-hidden="true">⚠️</span>
+          <TriangleAlert size={16} strokeWidth={1.5} aria-hidden="true" />
           <span>Tasa de referencia · vigente manana</span>
         </div>
       )}
@@ -191,13 +205,15 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
           onClick={() => handleCopyResult(cleanCopyValue, setCopied)}
           aria-label={copied ? 'Resultado copiado' : 'Copiar resultado'}
         >
-          {copied ? '✅ Copiado' : '📋 Copiar'}
+          {copied
+            ? <><Check size={16} strokeWidth={1.5} aria-hidden="true" /> Copiado</>
+            : <><Copy size={16} strokeWidth={1.5} aria-hidden="true" /> Copiar</>}
         </button>
 
         <div className="add-to-tape-wrap">
           {tooltipVisible && (
             <div className="add-to-tape-tooltip" role="status">
-              Suma varios calculos <span aria-hidden="true">⬇️</span>
+              Suma varios calculos <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
             </div>
           )}
           <button
@@ -206,7 +222,9 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
             onClick={() => handleAddToTape(result, mode, onAddToTape, setAdded, setTooltipVisible)}
             aria-label={added ? 'Sumado a la cinta' : 'Sumar a mi cinta'}
           >
-            {added ? '✅ Sumado' : '➕ Sumar'}
+            {added
+              ? <><Check size={16} strokeWidth={1.5} aria-hidden="true" /> Sumado</>
+              : <><Plus size={16} strokeWidth={1.5} aria-hidden="true" /> Sumar</>}
           </button>
         </div>
       </div>
@@ -236,12 +254,12 @@ export default function ResultDisplay({ result, loading, error, mode, onAddToTap
 
         {!isCustomMode && validity === 'today' && (
           <p className="result-display__validity result-display__validity--today">
-            ✅ Vigente: HOY
+            <CircleCheck size={14} strokeWidth={1.5} aria-hidden="true" /> Vigente: HOY
           </p>
         )}
         {!isCustomMode && validity === 'future' && (
           <p className="result-display__validity result-display__validity--future">
-            ⚠️ Vigente desde: manana
+            <TriangleAlert size={14} strokeWidth={1.5} aria-hidden="true" /> Vigente desde: manana
           </p>
         )}
 

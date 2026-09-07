@@ -299,6 +299,9 @@ input:focus-visible {
 .rate-card__badge {
   flex: 0 0 auto;
   padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--color-primary);
   background: var(--color-primary-soft);
   border-radius: var(--radius-full);
@@ -385,6 +388,9 @@ input:focus-visible {
 }
 
 .rate-card__pill-variation {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   color: var(--color-text-soft);
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
@@ -793,6 +799,9 @@ input:focus-visible {
 }
 
 .result-display__validity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--color-success);
   font-size: 13px;
   font-weight: var(--font-weight-semibold);
@@ -806,6 +815,7 @@ input:focus-visible {
   align-self: center;
   padding: 6px 10px;
   display: inline-flex;
+  align-items: center;
   gap: var(--space-2);
   color: var(--color-accent);
   background: rgba(245, 158, 11, 0.12);
@@ -961,6 +971,9 @@ input:focus-visible {
 }
 
 .tape-card__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--color-text);
   font-size: 18px;
   font-weight: var(--font-weight-bold);
@@ -1598,7 +1611,9 @@ html[data-theme="light"] .history-date__input::-webkit-calendar-picker-indicator
 }
 
 .history-date__label {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--color-text-secondary);
   font-size: 15px;
   font-weight: var(--font-weight-semibold);

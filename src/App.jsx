@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { Calculator, LineChart, Moon, Sun } from 'lucide-react'
 import ModeSelector from './components/ModeSelector.jsx'
 import CalculatorInput from './components/CalculatorInput.jsx'
 import ResultDisplay from './components/ResultDisplay.jsx'
@@ -314,7 +315,7 @@ export default function App() {
           aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           title={theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}
         >
-          <span aria-hidden="true">{theme === 'dark' ? '🌙' : '☀️'}</span>
+          {theme === 'dark' ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
         </button>
       </header>
 
@@ -326,7 +327,7 @@ export default function App() {
           className={`app-tabs__option${activeTab === 'calculadora' ? ' app-tabs__option--active' : ''}`}
           onClick={() => handleTabChange('calculadora')}
         >
-          🧮 Calculadora
+          <Calculator size={16} strokeWidth={1.5} aria-hidden="true" /> Calculadora
         </button>
         <button
           type="button"
@@ -335,7 +336,7 @@ export default function App() {
           className={`app-tabs__option${activeTab === 'historico' ? ' app-tabs__option--active' : ''}`}
           onClick={() => handleTabChange('historico')}
         >
-          📈 Histórico
+          <LineChart size={16} strokeWidth={1.5} aria-hidden="true" /> Histórico
         </button>
       </nav>
 
@@ -419,7 +420,7 @@ export default function App() {
       />
 
       <footer className="app-footer">
-        <p className="app-version">v0.14.1</p>
+        <p className="app-version">v0.14.2</p>
       </footer>
     </main>
   )
